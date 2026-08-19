@@ -10,18 +10,37 @@ T = TypeVar("T")
 class ErrorDetail(BaseModel):
     """Machine-readable error payload."""
 
-    code: str = Field(..., description="Stable machine-readable error code.", examples=["VALIDATION_ERROR"])
+    code: str = Field(
+        ...,
+        description="Stable machine-readable error code for client handling.",
+        examples=["VALIDATION_ERROR", "AUTHENTICATION_FAILED", "RATE_LIMIT_EXCEEDED"],
+    )
     details: Any = Field(
         default=None,
-        description="Optional structured details (e.g. field errors).",
+        description="Optional structured details (e.g. field errors or retry_after).",
+        examples=[None, [{"field": "email", "message": "value is not a valid email address"}]],
     )
 
 
 class ErrorResponse(BaseModel):
     """Standard error response envelope."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "success": False,
+                "message": "Invalid email or password.",
+                "error": {"code": "AUTHENTICATION_FAILED", "details": None},
+            }
+        }
+    )
+
     success: bool = Field(default=False, description="Always false for errors.")
-    message: str = Field(..., description="UI-safe human-readable message.")
+    message: str = Field(
+        ...,
+        description="UI-safe human-readable message.",
+        examples=["Invalid email or password.", "Validation error"],
+    )
     error: ErrorDetail = Field(..., description="Structured error information.")
 
 
