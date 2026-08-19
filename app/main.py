@@ -6,8 +6,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
-from app.api.v1.router import api_router
 from app.api.v1.endpoints.auth import legacy_router
+from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import logger, setup_logging
 from app.exceptions.handlers import register_exception_handlers

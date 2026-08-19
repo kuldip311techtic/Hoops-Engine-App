@@ -5,7 +5,11 @@ from datetime import timedelta
 import pytest
 from httpx import AsyncClient
 
-from app.core.security import create_access_token, decode_access_token, InvalidTokenError
+from app.core.security import (
+    InvalidTokenError,
+    create_access_token,
+    decode_access_token,
+)
 from app.models.super_admin import SuperAdmin
 
 

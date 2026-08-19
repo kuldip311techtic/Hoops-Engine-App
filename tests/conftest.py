@@ -17,7 +17,7 @@ TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
     os.environ.get(
         "DATABASE_URL",
-        "DATABASE_URL=DATABASE_URL=postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine",
+        "DATABASE_URL=DATABASE_URL=DATABASE_URL=postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine",
     ),
 )
 
@@ -35,13 +35,12 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
-from app.core.config import get_settings  # noqa: E402
-from app.core.security import create_access_token, hash_password  # noqa: E402
-from app.db.base import Base  # noqa: E402
-from app.db.session import get_async_session  # noqa: E402
-from app.dependencies.database import get_db  # noqa: E402
-from app.main import create_app  # noqa: E402
-from app.models.super_admin import SuperAdmin  # noqa: E402
+from app.core.config import get_settings
+from app.core.security import create_access_token, hash_password
+from app.db.base import Base
+from app.dependencies.database import get_db
+from app.main import create_app
+from app.models.super_admin import SuperAdmin
 
 get_settings.cache_clear()
 

@@ -144,4 +144,4 @@ class TestDatabaseConnectivity:
         assert result == len(seeded_super_admins)
 
 
-from app.models.super_admin import SuperAdmin  # noqa: E402  — used in DB test
+from app.models.super_admin import SuperAdmin
