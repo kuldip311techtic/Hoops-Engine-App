@@ -88,6 +88,7 @@ class UserCreate(BaseModel):
     organization_id: uuid.UUID | None = Field(
         default=None,
         description="Optional organization this user belongs to.",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
     )
 
     @model_validator(mode="after")
@@ -278,6 +279,7 @@ class UserRead(BaseModel):
     organization_id: uuid.UUID | None = Field(
         default=None,
         description="Optional organization this user belongs to.",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
     )
 
 

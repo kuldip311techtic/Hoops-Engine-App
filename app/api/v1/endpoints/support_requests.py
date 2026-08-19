@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.dependencies.auth import get_current_super_admin
 from app.dependencies.support_requests import get_support_request_service
@@ -154,12 +154,18 @@ async def _close_support_request(
     },
 )
 async def list_support_requests_v1(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of support requests per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
@@ -223,7 +229,11 @@ async def respond_to_support_request_v1(
     },
 )
 async def close_support_request_v1(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Support request identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
 ) -> SupportRequestCloseResponse:
@@ -248,12 +258,18 @@ async def close_support_request_v1(
     },
 )
 async def list_support_requests_legacy(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of support requests per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
@@ -322,7 +338,11 @@ async def respond_to_support_request_legacy(
     },
 )
 async def close_support_request_legacy(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Support request identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
 ) -> SupportRequestCloseResponse:

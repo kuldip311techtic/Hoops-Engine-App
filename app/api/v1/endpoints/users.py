@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.dependencies.auth import get_current_super_admin
 from app.dependencies.users import get_user_service
@@ -39,6 +39,16 @@ _NOT_FOUND_EXAMPLE = {
     "success": False,
     "message": "User not found.",
     "error": {"code": "USER_NOT_FOUND", "details": None},
+}
+_ORG_NOT_FOUND_EXAMPLE = {
+    "success": False,
+    "message": "Organization not found.",
+    "error": {
+        "code": "ORGANIZATION_NOT_FOUND",
+        "details": [
+            {"field": "organization_id", "message": "Organization not found."}
+        ],
+    },
 }
 _EMAIL_CONFLICT_EXAMPLE = {
     "success": False,
@@ -177,12 +187,18 @@ async def _delete_user(
     },
 )
 async def list_users_v1(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of users per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -206,6 +222,27 @@ async def list_users_v1(
             "content": {"application/json": {"example": _EMAIL_CONFLICT_EXAMPLE}},
         },
         **_PROTECTED_ERROR_RESPONSES,
+        422: {
+            "description": (
+                "Validation error, including unknown organization_id "
+                "(ORGANIZATION_NOT_FOUND)."
+            ),
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "validation": {
+                            "summary": "VALIDATION_ERROR",
+                            "value": _VALIDATION_EXAMPLE,
+                        },
+                        "unknown_organization": {
+                            "summary": "ORGANIZATION_NOT_FOUND",
+                            "value": _ORG_NOT_FOUND_EXAMPLE,
+                        },
+                    }
+                }
+            },
+        },
     },
 )
 async def create_user_v1(
@@ -240,7 +277,11 @@ async def create_user_v1(
     },
 )
 async def update_user_v1(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="User identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     body: UserUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -278,7 +319,11 @@ async def update_user_v1(
     },
 )
 async def delete_user_v1(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="User identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
 ) -> UserDeleteResponse:
@@ -299,12 +344,18 @@ async def delete_user_v1(
     },
 )
 async def list_users_legacy(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of users per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -328,6 +379,27 @@ async def list_users_legacy(
             "content": {"application/json": {"example": _EMAIL_CONFLICT_EXAMPLE}},
         },
         **_PROTECTED_ERROR_RESPONSES,
+        422: {
+            "description": (
+                "Validation error, including unknown organization_id "
+                "(ORGANIZATION_NOT_FOUND)."
+            ),
+            "model": ErrorResponse,
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "validation": {
+                            "summary": "VALIDATION_ERROR",
+                            "value": _VALIDATION_EXAMPLE,
+                        },
+                        "unknown_organization": {
+                            "summary": "ORGANIZATION_NOT_FOUND",
+                            "value": _ORG_NOT_FOUND_EXAMPLE,
+                        },
+                    }
+                }
+            },
+        },
     },
 )
 async def create_user_legacy(
@@ -362,7 +434,11 @@ async def create_user_legacy(
     },
 )
 async def update_user_legacy(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="User identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     body: UserUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -400,7 +476,11 @@ async def update_user_legacy(
     },
 )
 async def delete_user_legacy(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="User identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
 ) -> UserDeleteResponse:

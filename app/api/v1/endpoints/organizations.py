@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.dependencies.auth import get_current_super_admin
 from app.dependencies.organizations import get_organization_service
@@ -44,6 +44,19 @@ _NAME_CONFLICT_EXAMPLE = {
             {
                 "field": "name",
                 "message": "An organization with this name already exists.",
+            }
+        ],
+    },
+}
+_EMAIL_CONFLICT_EXAMPLE = {
+    "success": False,
+    "message": "An organization with this email already exists.",
+    "error": {
+        "code": "EMAIL_ALREADY_EXISTS",
+        "details": [
+            {
+                "field": "email",
+                "message": "An organization with this email already exists.",
             }
         ],
     },
@@ -188,12 +201,18 @@ async def _delete_organization(
     },
 )
 async def list_organizations_v1(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of organizations per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
@@ -217,7 +236,20 @@ async def list_organizations_v1(
         409: {
             "description": "Duplicate organization name or email.",
             "model": ErrorResponse,
-            "content": {"application/json": {"example": _NAME_CONFLICT_EXAMPLE}},
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "name_conflict": {
+                            "summary": "ORGANIZATION_NAME_EXISTS",
+                            "value": _NAME_CONFLICT_EXAMPLE,
+                        },
+                        "email_conflict": {
+                            "summary": "EMAIL_ALREADY_EXISTS",
+                            "value": _EMAIL_CONFLICT_EXAMPLE,
+                        },
+                    }
+                }
+            },
         },
         **_PROTECTED_ERROR_RESPONSES,
     },
@@ -251,13 +283,30 @@ async def create_organization_v1(
         409: {
             "description": "Duplicate organization name or email.",
             "model": ErrorResponse,
-            "content": {"application/json": {"example": _NAME_CONFLICT_EXAMPLE}},
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "name_conflict": {
+                            "summary": "ORGANIZATION_NAME_EXISTS",
+                            "value": _NAME_CONFLICT_EXAMPLE,
+                        },
+                        "email_conflict": {
+                            "summary": "EMAIL_ALREADY_EXISTS",
+                            "value": _EMAIL_CONFLICT_EXAMPLE,
+                        },
+                    }
+                }
+            },
         },
         **_PROTECTED_ERROR_RESPONSES,
     },
 )
 async def update_organization_v1(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Organization identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     body: OrganizationUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
@@ -294,7 +343,11 @@ async def update_organization_v1(
     },
 )
 async def delete_organization_v1(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Organization identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationDeleteResponse:
@@ -318,12 +371,18 @@ async def delete_organization_v1(
     },
 )
 async def list_organizations_legacy(
-    page: int = Query(1, ge=1, description="1-based page number."),
+    page: int = Query(
+        1,
+        ge=1,
+        description="1-based page number.",
+        examples=[1],
+    ),
     page_size: int = Query(
         20,
         ge=1,
         le=100,
         description="Number of organizations per page.",
+        examples=[20],
     ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
@@ -348,7 +407,20 @@ async def list_organizations_legacy(
         409: {
             "description": "Duplicate organization name or email.",
             "model": ErrorResponse,
-            "content": {"application/json": {"example": _NAME_CONFLICT_EXAMPLE}},
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "name_conflict": {
+                            "summary": "ORGANIZATION_NAME_EXISTS",
+                            "value": _NAME_CONFLICT_EXAMPLE,
+                        },
+                        "email_conflict": {
+                            "summary": "EMAIL_ALREADY_EXISTS",
+                            "value": _EMAIL_CONFLICT_EXAMPLE,
+                        },
+                    }
+                }
+            },
         },
         **_PROTECTED_ERROR_RESPONSES,
     },
@@ -383,13 +455,30 @@ async def create_organization_legacy(
         409: {
             "description": "Duplicate organization name or email.",
             "model": ErrorResponse,
-            "content": {"application/json": {"example": _NAME_CONFLICT_EXAMPLE}},
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "name_conflict": {
+                            "summary": "ORGANIZATION_NAME_EXISTS",
+                            "value": _NAME_CONFLICT_EXAMPLE,
+                        },
+                        "email_conflict": {
+                            "summary": "EMAIL_ALREADY_EXISTS",
+                            "value": _EMAIL_CONFLICT_EXAMPLE,
+                        },
+                    }
+                }
+            },
         },
         **_PROTECTED_ERROR_RESPONSES,
     },
 )
 async def update_organization_legacy(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Organization identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     body: OrganizationUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
@@ -428,7 +517,11 @@ async def update_organization_legacy(
     },
 )
 async def delete_organization_legacy(
-    id: uuid.UUID,
+    id: uuid.UUID = Path(
+        ...,
+        description="Organization identifier (UUID).",
+        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+    ),
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: OrganizationService = Depends(get_organization_service),
 ) -> OrganizationDeleteResponse:
