@@ -1,6 +1,7 @@
 """Super Admin support request management endpoints."""
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, status
 
@@ -229,11 +230,13 @@ async def respond_to_support_request_v1(
     },
 )
 async def close_support_request_v1(
-    id: uuid.UUID = Path(
-        ...,
-        description="Support request identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="Support request identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
 ) -> SupportRequestCloseResponse:
@@ -338,11 +341,13 @@ async def respond_to_support_request_legacy(
     },
 )
 async def close_support_request_legacy(
-    id: uuid.UUID = Path(
-        ...,
-        description="Support request identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="Support request identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: SupportRequestService = Depends(get_support_request_service),
 ) -> SupportRequestCloseResponse:

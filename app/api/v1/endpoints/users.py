@@ -1,6 +1,7 @@
 """Super Admin user management endpoints."""
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Path, Query, status
 
@@ -277,11 +278,13 @@ async def create_user_v1(
     },
 )
 async def update_user_v1(
-    id: uuid.UUID = Path(
-        ...,
-        description="User identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="User identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     body: UserUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -319,11 +322,13 @@ async def update_user_v1(
     },
 )
 async def delete_user_v1(
-    id: uuid.UUID = Path(
-        ...,
-        description="User identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="User identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
 ) -> UserDeleteResponse:
@@ -434,11 +439,13 @@ async def create_user_legacy(
     },
 )
 async def update_user_legacy(
-    id: uuid.UUID = Path(
-        ...,
-        description="User identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="User identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     body: UserUpdate,
     _admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
@@ -476,11 +483,13 @@ async def update_user_legacy(
     },
 )
 async def delete_user_legacy(
-    id: uuid.UUID = Path(
-        ...,
-        description="User identifier (UUID).",
-        examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
-    ),
+    id: Annotated[
+        uuid.UUID,
+        Path(
+            description="User identifier (UUID).",
+            examples=["3fa85f64-5717-4562-b3fc-2c963f66afa6"],
+        ),
+    ],
     admin: SuperAdmin = Depends(get_current_super_admin),
     service: UserService = Depends(get_user_service),
 ) -> UserDeleteResponse:
