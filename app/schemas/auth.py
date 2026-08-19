@@ -59,6 +59,8 @@ class LoginResponse(BaseModel):
                 "success": True,
                 "message": "Login successful.",
                 "description": "Super Admin authenticated. Redirect to dashboard.",
+                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                "email": "admin@example.com",
                 "data": {
                     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
                     "token_type": "bearer",
@@ -82,5 +84,15 @@ class LoginResponse(BaseModel):
         ...,
         description="Detailed outcome description for UI display or logging.",
         examples=["Super Admin authenticated. Redirect to dashboard."],
+    )
+    token: str = Field(
+        ...,
+        description="JWT access token for Authorization: Bearer header (mirrors data.token).",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
+    email: str = Field(
+        ...,
+        description="Authenticated Super Admin email (mirrors data.email).",
+        examples=["admin@example.com"],
     )
     data: LoginData = Field(..., description="Authentication payload including JWT token.")

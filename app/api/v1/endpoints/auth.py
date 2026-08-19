@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter, Depends, Request, status
 
+from app.core.config import get_settings
 from app.dependencies.auth import get_auth_service
 from app.middleware.rate_limiter import limiter
 from app.schemas.auth import LoginRequest, LoginResponse
@@ -15,6 +16,8 @@ _LOGIN_SUCCESS_EXAMPLE = {
     "success": True,
     "message": "Login successful.",
     "description": "Super Admin authenticated. Redirect to dashboard.",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIuLi.",
+    "email": "admin@example.com",
     "data": {
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIuLi.",
         "token_type": "bearer",
@@ -22,6 +25,8 @@ _LOGIN_SUCCESS_EXAMPLE = {
         "email": "admin@example.com",
     },
 }
+
+_LOGIN_RATE_LIMIT = get_settings().effective_login_rate_limit
 
 _LOGIN_AUTH_ERROR_EXAMPLE = {
     "success": False,
@@ -108,7 +113,7 @@ async def _login(
     responses=_LOGIN_OPENAPI_RESPONSES,
     openapi_extra={"security": []},
 )
-@limiter.limit("10/minute")
+@limiter.limit(_LOGIN_RATE_LIMIT)
 async def login_super_admin_v1(
     request: Request,
     body: LoginRequest,
@@ -131,7 +136,7 @@ async def login_super_admin_v1(
     responses=_LOGIN_OPENAPI_RESPONSES,
     openapi_extra={"security": []},
 )
-@limiter.limit("10/minute")
+@limiter.limit(_LOGIN_RATE_LIMIT)
 async def login_super_admin_legacy(
     request: Request,
     body: LoginRequest,

@@ -82,6 +82,17 @@ class Settings(BaseSettings):
         default=None,
         description="Optional bootstrap Super Admin password.",
     )
+    login_rate_limit: str = Field(
+        default="10/minute",
+        description="slowapi rate limit for login endpoints (e.g. 60/minute).",
+    )
+
+    @property
+    def effective_login_rate_limit(self) -> str:
+        """Return a relaxed login rate limit outside production."""
+        if self.environment in ("development", "test"):
+            return self.login_rate_limit if self.login_rate_limit != "10/minute" else "60/minute"
+        return self.login_rate_limit
 
     @field_validator("database_url", "test_database_url", mode="before")
     @classmethod

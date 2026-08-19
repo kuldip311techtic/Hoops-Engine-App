@@ -41,6 +41,8 @@ class AuthService:
             success=True,
             message="Login successful.",
             description="Super Admin authenticated. Redirect to dashboard.",
+            token=token,
+            email=admin.email,
             data=LoginData(
                 token=token,
                 token_type="bearer",
