@@ -2,6 +2,7 @@
 
 import os
 from collections.abc import AsyncIterator
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -13,18 +14,25 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 # ---------------------------------------------------------------------------
 # Environment — read from .env.test / environment; never hardcode secrets.
 # ---------------------------------------------------------------------------
-TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL",
-    os.environ.get(
-        "DATABASE_URL",
-        "DATABASE_URL=DATABASE_URL=DATABASE_URL=postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine",
-    ),
-)
+from app.core.config import normalize_database_url  # noqa: E402
 
-# Normalize accidental duplicated key prefixes (matches app.core.config validator).
-for _prefix in ("DATABASE_URL=", "TEST_DATABASE_URL="):
-    if TEST_DATABASE_URL.startswith(_prefix):
-        TEST_DATABASE_URL = TEST_DATABASE_URL.removeprefix(_prefix)
+_TEST_ENV_FILE = Path(__file__).resolve().parent.parent / ".env.test"
+if _TEST_ENV_FILE.exists():
+    for _line in _TEST_ENV_FILE.read_text(encoding="utf-8").splitlines():
+        _line = _line.strip()
+        if not _line or _line.startswith("#") or "=" not in _line:
+            continue
+        _key, _value = _line.split("=", 1)
+        os.environ.setdefault(_key.strip(), _value.strip())
+
+_raw_db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
+if _raw_db_url is None:
+    raise RuntimeError(
+        "TEST_DATABASE_URL or DATABASE_URL must be set (see .env.test)."
+    )
+TEST_DATABASE_URL = normalize_database_url(_raw_db_url)
+if not TEST_DATABASE_URL:
+    raise RuntimeError("Database URL is empty after normalization.")
 
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 os.environ["TEST_DATABASE_URL"] = TEST_DATABASE_URL

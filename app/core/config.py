@@ -6,6 +6,23 @@ from typing import Literal
 from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_DATABASE_URL_PREFIXES = ("DATABASE_URL=", "TEST_DATABASE_URL=")
+
+
+def normalize_database_url(value: str | None) -> str | None:
+    """Strip repeated accidental key prefixes from a database URL string."""
+    if value is None or not isinstance(value, str):
+        return value
+    cleaned = value.strip()
+    changed = True
+    while changed:
+        changed = False
+        for prefix in _DATABASE_URL_PREFIXES:
+            if cleaned.startswith(prefix):
+                cleaned = cleaned.removeprefix(prefix)
+                changed = True
+    return cleaned
+
 
 class Settings(BaseSettings):
     """Central application settings."""
@@ -70,13 +87,7 @@ class Settings(BaseSettings):
     @classmethod
     def normalize_database_url(cls, value: str | None) -> str | None:
         """Strip accidental key prefixes and whitespace from database URLs."""
-        if value is None or not isinstance(value, str):
-            return value
-        cleaned = value.strip()
-        for prefix in ("DATABASE_URL=", "TEST_DATABASE_URL="):
-            if cleaned.startswith(prefix):
-                cleaned = cleaned.removeprefix(prefix)
-        return cleaned
+        return normalize_database_url(value)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
