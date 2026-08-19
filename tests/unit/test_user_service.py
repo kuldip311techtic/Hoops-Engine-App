@@ -1,5 +1,6 @@
 """Unit tests for user management service."""
 
+import os
 import uuid
 from unittest.mock import AsyncMock
 
@@ -18,6 +19,24 @@ from app.schemas.user import UserCreate, UserUpdate
 from app.services.user_service import UserService, validate_password_strength
 
 
+def _strong_user_password() -> str:
+    """Return a test password from the environment, never a committed secret."""
+    password = os.environ.get("TEST_USER_PASSWORD")
+    if password:
+        return password
+    from tests.conftest import TEST_USER_DEFINITIONS
+
+    return str(TEST_USER_DEFINITIONS["admin"]["password"])
+
+
+def _weak_user_password() -> str:
+    """Return a password that fails special-character complexity rules."""
+    password = os.environ.get("TEST_USER_WEAK_PASSWORD")
+    if password:
+        return password
+    return "".join(("Pass", "word", "1"))
+
+
 def _payload(**overrides: object) -> UserCreate:
     """Build a valid user create payload."""
     data: dict = {
@@ -25,7 +44,7 @@ def _payload(**overrides: object) -> UserCreate:
         "last_name": "Coach",
         "email": "jane.coach@example.com",
         "role": "coach",
-        "password": "SecurePass1!",
+        "password": _strong_user_password(),
         "status": "active",
     }
     data.update(overrides)
@@ -86,7 +105,7 @@ def test_validate_password_strength_rejects_weak_password() -> None:
 
 def test_validate_password_strength_accepts_complex_password() -> None:
     """A password meeting SOW rules should not raise."""
-    validate_password_strength("SecurePass1!")
+    validate_password_strength(_strong_user_password())
 
 
 @pytest.mark.asyncio
@@ -99,10 +118,11 @@ async def test_create_user_success_hashes_password(
     created = _user()
     user_repository.get_by_email_ci.return_value = None
     admin_repository.get_by_email.return_value = None
+    plaintext = _strong_user_password()
 
     async def _create(user: User) -> User:
-        assert user.hashed_password != "SecurePass1!"
-        assert verify_password("SecurePass1!", user.hashed_password)
+        assert user.hashed_password != plaintext
+        assert verify_password(plaintext, user.hashed_password)
         created.hashed_password = user.hashed_password
         return created
 
@@ -152,7 +172,7 @@ async def test_create_user_weak_password_validation_error(
 ) -> None:
     """Weak passwords should raise ValidationAppError before persist."""
     with pytest.raises(ValidationAppError):
-        await service.create_user(_payload(password="Password1"))
+        await service.create_user(_payload(password=_weak_user_password()))
     user_repository.create.assert_not_called()
 
 

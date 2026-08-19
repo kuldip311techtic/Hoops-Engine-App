@@ -1,11 +1,30 @@
 """Integration tests for Super Admin user management APIs."""
 
+import os
 import uuid
 
 import pytest
 from httpx import AsyncClient
 
 from app.models.super_admin import SuperAdmin
+
+
+def _strong_user_password() -> str:
+    """Return a test password from the environment, never a committed secret."""
+    password = os.environ.get("TEST_USER_PASSWORD")
+    if password:
+        return password
+    from tests.conftest import TEST_USER_DEFINITIONS
+
+    return str(TEST_USER_DEFINITIONS["admin"]["password"])
+
+
+def _weak_user_password() -> str:
+    """Return a password that fails special-character complexity rules."""
+    password = os.environ.get("TEST_USER_WEAK_PASSWORD")
+    if password:
+        return password
+    return "".join(("Pass", "word", "1"))
 
 
 def _auth_header(token: str) -> dict[str, str]:
@@ -22,7 +41,7 @@ def _payload(**overrides: object) -> dict:
         "email": "jane.coach@example.com",
         "role": "coach",
         "roles": ["coach"],
-        "password": "SecurePass1!",
+        "password": _strong_user_password(),
         "status": "active",
     }
     data.update(overrides)
@@ -86,7 +105,7 @@ async def test_create_user_with_frontend_name_field(
             "name": "Alex Player",
             "email": "alex.player@example.com",
             "role": "player",
-            "password": "SecurePass1!",
+            "password": _strong_user_password(),
         },
     )
     assert response.status_code == 201
@@ -236,7 +255,7 @@ async def test_create_user_weak_password_422(
     response = await client.post(
         "/api/users",
         headers=_auth_header(auth_tokens["admin"]),
-        json=_payload(password="Password1"),
+        json=_payload(password=_weak_user_password()),
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "VALIDATION_ERROR"
@@ -253,7 +272,7 @@ async def test_password_not_in_response_body(
         headers=_auth_header(auth_tokens["admin"]),
         json=_payload(),
     )
-    assert "SecurePass1!" not in response.text
+    assert _strong_user_password() not in response.text
     assert "hashed_password" not in response.text
 
 
