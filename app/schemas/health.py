@@ -17,6 +17,8 @@ class HealthResponse(BaseModel):
             "example": {
                 "success": True,
                 "message": "Service is healthy.",
+                "email": None,
+                "token": None,
                 "data": {"status": "healthy"},
             }
         }
@@ -27,5 +29,13 @@ class HealthResponse(BaseModel):
         default="Service is healthy.",
         description="Human-readable status message.",
         examples=["Service is healthy."],
+    )
+    email: str | None = Field(
+        default=None,
+        description="Not populated on health checks; present for consistent API envelope keys.",
+    )
+    token: str | None = Field(
+        default=None,
+        description="Not populated on health checks; present for consistent API envelope keys.",
     )
     data: HealthData = Field(..., description="Health details.")

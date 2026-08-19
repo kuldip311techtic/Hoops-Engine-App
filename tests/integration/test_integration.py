@@ -12,6 +12,8 @@ async def test_health_returns_200(client: AsyncClient) -> None:
     body = response.json()
     assert body["success"] is True
     assert body["data"]["status"] == "healthy"
+    assert "email" in body
+    assert "token" in body
 
 
 @pytest.mark.asyncio

@@ -30,7 +30,9 @@ class TestLoginHappyPath:
         body = response.json()
         assert body["success"] is True
         assert body["message"] == "Login successful."
-        assert body["data"]["token"]
+        assert body["token"]
+        assert body["email"] == admin["email"]
+        assert body["data"]["token"] == body["token"]
         assert body["data"]["email"] == admin["email"]
         assert body["data"]["token_type"] == "bearer"
         assert body["data"]["expires_in"] > 0
@@ -61,6 +63,7 @@ class TestLoginHappyPath:
         )
         body = response.json()
         assert "dashboard" in body["description"].lower()
+        assert body["token"]
         assert body["data"]["token"]
 
     @pytest.mark.asyncio

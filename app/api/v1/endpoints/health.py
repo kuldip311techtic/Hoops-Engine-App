@@ -10,6 +10,8 @@ router = APIRouter()
 _HEALTH_SUCCESS_EXAMPLE = {
     "success": True,
     "message": "Service is healthy.",
+    "email": None,
+    "token": None,
     "data": {"status": "healthy"},
 }
 

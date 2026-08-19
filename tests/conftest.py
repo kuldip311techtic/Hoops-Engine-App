@@ -9,7 +9,12 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 # ---------------------------------------------------------------------------
 # Environment — read from .env.test / environment; never hardcode secrets.
@@ -43,12 +48,13 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
-from app.core.config import get_settings
-from app.core.security import create_access_token, hash_password
-from app.db.base import Base
-from app.dependencies.database import get_db
-from app.main import create_app
-from app.models.super_admin import SuperAdmin
+from app.core.config import get_settings  # noqa: E402
+from app.core.security import create_access_token, hash_password  # noqa: E402
+from app.db import session as db_session_module  # noqa: E402
+from app.db.base import Base  # noqa: E402
+from app.dependencies.database import get_db  # noqa: E402
+from app.main import create_app  # noqa: E402
+from app.models.super_admin import SuperAdmin  # noqa: E402
 
 get_settings.cache_clear()
 
@@ -94,15 +100,6 @@ TEST_USER_DEFINITIONS: dict[str, dict[str, Any]] = {
     },
 }
 
-_test_engine = create_async_engine(TEST_DATABASE_URL, echo=False, pool_pre_ping=True)
-_test_session_factory = async_sessionmaker(
-    bind=_test_engine,
-    class_=AsyncSession,
-    expire_on_commit=False,
-    autoflush=False,
-    autocommit=False,
-)
-
 
 @pytest.fixture(scope="session")
 def test_users() -> dict[str, dict[str, Any]]:
@@ -110,27 +107,49 @@ def test_users() -> dict[str, dict[str, Any]]:
     return TEST_USER_DEFINITIONS
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
-async def setup_test_database() -> AsyncIterator[None]:
-    """Create tables once for the test session; drop on teardown."""
-    async with _test_engine.begin() as conn:
+@pytest_asyncio.fixture(scope="session")
+async def test_engine() -> AsyncIterator[AsyncEngine]:
+    """Session-scoped async engine bound to the pytest session event loop."""
+    engine = create_async_engine(TEST_DATABASE_URL, echo=False, pool_pre_ping=True)
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with _test_engine.begin() as conn:
+    yield engine
+    async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
-    await _test_engine.dispose()
+    await engine.dispose()
 
 
-async def _truncate_super_admins() -> None:
+@pytest_asyncio.fixture(scope="session")
+async def test_session_factory(
+    test_engine: AsyncEngine,
+) -> async_sessionmaker[AsyncSession]:
+    """Session-scoped session factory sharing the session event loop."""
+    return async_sessionmaker(
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False,
+        autoflush=False,
+        autocommit=False,
+    )
+
+
+async def _truncate_super_admins(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
     """Remove all rows from super_admins without dropping schema."""
-    async with _test_engine.begin() as conn:
-        await conn.execute(text("TRUNCATE TABLE super_admins RESTART IDENTITY CASCADE"))
+    async with session_factory() as session:
+        async with session.begin():
+            await session.execute(
+                text("TRUNCATE TABLE super_admins RESTART IDENTITY CASCADE")
+            )
 
 
-async def _seed_super_admins() -> list[SuperAdmin]:
+async def _seed_super_admins(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> list[SuperAdmin]:
     """Insert four Super Admin rows (excludes 'new' persona)."""
     admins: list[SuperAdmin] = []
-    async with _test_session_factory() as session:
+    async with session_factory() as session:
         for key, data in TEST_USER_DEFINITIONS.items():
             if data.get("seed", True) is False:
                 continue
@@ -148,28 +167,41 @@ async def _seed_super_admins() -> list[SuperAdmin]:
 
 
 @pytest_asyncio.fixture
-async def seeded_super_admins() -> AsyncIterator[list[SuperAdmin]]:
+async def seeded_super_admins(
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[list[SuperAdmin]]:
     """Truncate and re-seed Super Admin rows before each test."""
-    await _truncate_super_admins()
-    admins = await _seed_super_admins()
+    await _truncate_super_admins(test_session_factory)
+    admins = await _seed_super_admins(test_session_factory)
     yield admins
-    await _truncate_super_admins()
+    await _truncate_super_admins(test_session_factory)
 
 
 @pytest_asyncio.fixture
-async def db_session(seeded_super_admins: list[SuperAdmin]) -> AsyncIterator[AsyncSession]:
+async def db_session(
+    seeded_super_admins: list[SuperAdmin],
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncSession]:
     """Yield a database session bound to the test PostgreSQL database."""
-    async with _test_session_factory() as session:
+    async with test_session_factory() as session:
         yield session
 
 
 @pytest_asyncio.fixture
-async def client(seeded_super_admins: list[SuperAdmin]) -> AsyncIterator[AsyncClient]:
+async def client(
+    seeded_super_admins: list[SuperAdmin],
+    test_session_factory: async_sessionmaker[AsyncSession],
+) -> AsyncIterator[AsyncClient]:
     """HTTP client with get_db overridden to use the test database session."""
+    db_session_module._engine = None
+    db_session_module._session_factory = None
+    db_session_module._test_engine = None
+    db_session_module._test_session_factory = None
+
     application = create_app()
 
     async def override_get_db() -> AsyncIterator[AsyncSession]:
-        async with _test_session_factory() as session:
+        async with test_session_factory() as session:
             try:
                 yield session
             finally:
