@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import (
 # ---------------------------------------------------------------------------
 # Environment — read from .env.test / environment; never hardcode secrets.
 # ---------------------------------------------------------------------------
-from app.core.config import normalize_database_url  # noqa: E402
+from app.core.config import normalize_database_url
 
 _TEST_ENV_FILE = Path(__file__).resolve().parent.parent / ".env.test"
 if _TEST_ENV_FILE.exists():
@@ -46,16 +46,16 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
-from app.core.config import get_settings  # noqa: E402
-from app.core.security import create_access_token, hash_password  # noqa: E402
-from app.db import session as db_session_module  # noqa: E402
-from app.db.base import Base  # noqa: E402
-from app.dependencies.database import get_db  # noqa: E402
-from app.main import create_app  # noqa: E402
-from app.models.organization import Organization  # noqa: E402, F401
-from app.models.super_admin import SuperAdmin  # noqa: E402
-from app.models.support_request import SupportRequest  # noqa: E402, F401
-from app.models.user import User  # noqa: E402, F401
+from app.core.config import get_settings
+from app.core.security import create_access_token, hash_password
+from app.db import session as db_session_module
+from app.db.base import Base
+from app.dependencies.database import get_db
+from app.main import create_app
+from app.models.organization import Organization  # noqa: F401
+from app.models.super_admin import SuperAdmin
+from app.models.support_request import SupportRequest  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 get_settings.cache_clear()
 
@@ -138,14 +138,13 @@ async def _truncate_super_admins(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
     """Remove Super Admin, user, organization, and support request rows."""
-    async with session_factory() as session:
-        async with session.begin():
-            await session.execute(
-                text(
-                    "TRUNCATE TABLE support_requests, users, organizations, "
-                    "super_admins RESTART IDENTITY CASCADE"
-                )
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "TRUNCATE TABLE support_requests, users, organizations, "
+                "super_admins RESTART IDENTITY CASCADE"
             )
+        )
 
 
 async def _seed_super_admins(
