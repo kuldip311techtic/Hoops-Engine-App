@@ -6,7 +6,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.openapi.utils import get_openapi
 
-from app.api.v1.endpoints.auth import legacy_router
+from app.api.v1.endpoints.auth import legacy_router as auth_legacy_router
+from app.api.v1.endpoints.organizations import (
+    legacy_router as organizations_legacy_router,
+)
+from app.api.v1.endpoints.support_requests import (
+    legacy_router as support_requests_legacy_router,
+)
+from app.api.v1.endpoints.users import legacy_router as users_legacy_router
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import logger, setup_logging
@@ -32,14 +39,29 @@ def _custom_openapi(app: FastAPI) -> dict:
         "scheme": "bearer",
         "bearerFormat": "JWT",
         "description": (
-            "JWT access token obtained from POST /api/login or POST /api/v1/auth/login. "
-            "Include as: Authorization: Bearer <token>"
+            "JWT access token obtained from POST /api/login or "
+            "POST /api/v1/auth/login. Include as: Authorization: Bearer <token>"
         ),
     }
-    openapi_schema.setdefault("tags", [
-        {"name": "health", "description": "Service health and uptime probes."},
-        {"name": "auth", "description": "Super Admin authentication endpoints."},
-    ])
+    openapi_schema.setdefault(
+        "tags",
+        [
+            {"name": "health", "description": "Service health and uptime probes."},
+            {"name": "auth", "description": "Super Admin authentication endpoints."},
+            {
+                "name": "organizations",
+                "description": "Super Admin organization management endpoints.",
+            },
+            {
+                "name": "support-requests",
+                "description": "Super Admin support request management endpoints.",
+            },
+            {
+                "name": "users",
+                "description": "Super Admin user management endpoints.",
+            },
+        ],
+    )
     app.openapi_schema = openapi_schema
     return app.openapi_schema
 
@@ -61,8 +83,9 @@ def create_app() -> FastAPI:
         description=(
             "Backend API for the Hoops Engine application. "
             "Provides authentication, training management, and admin capabilities. "
-            "Public endpoints (health, login) require no auth. Protected endpoints "
-            "require Authorization: Bearer <JWT> from the login response data.token field."
+            "Public endpoints (health, login) require no auth. "
+            "Protected endpoints require Authorization: Bearer <JWT> "
+            "from the login response data.token field."
         ),
         version="0.1.0",
         docs_url="/docs",
@@ -77,7 +100,10 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
 
     app.include_router(api_router, prefix="/api/v1")
-    app.include_router(legacy_router, prefix="/api")
+    app.include_router(auth_legacy_router, prefix="/api")
+    app.include_router(organizations_legacy_router, prefix="/api")
+    app.include_router(support_requests_legacy_router, prefix="/api")
+    app.include_router(users_legacy_router, prefix="/api")
 
     app.openapi = lambda: _custom_openapi(app)
 
