@@ -17,7 +17,7 @@ TEST_DATABASE_URL = os.environ.get(
     "TEST_DATABASE_URL",
     os.environ.get(
         "DATABASE_URL",
-        "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine_test",
+        "DATABASE_URL=DATABASE_URL=postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine",
     ),
 )
 
