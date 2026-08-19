@@ -66,6 +66,18 @@ class Settings(BaseSettings):
         description="Optional bootstrap Super Admin password.",
     )
 
+    @field_validator("database_url", "test_database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, value: str | None) -> str | None:
+        """Strip accidental key prefixes and whitespace from database URLs."""
+        if value is None or not isinstance(value, str):
+            return value
+        cleaned = value.strip()
+        for prefix in ("DATABASE_URL=", "TEST_DATABASE_URL="):
+            if cleaned.startswith(prefix):
+                cleaned = cleaned.removeprefix(prefix)
+        return cleaned
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def split_cors_origins(cls, value: str | list[str]) -> str:

@@ -9,7 +9,7 @@ Create Date: 2026-08-19
 from typing import Sequence, Union
 
 revision: str = "0001_initial"
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = "80955f6a9509"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
