@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import (
 # ---------------------------------------------------------------------------
 # Environment — read from .env.test / environment; never hardcode secrets.
 # ---------------------------------------------------------------------------
-from app.core.config import normalize_database_url  # noqa: E402
+from app.core.config import normalize_database_url
 
 _TEST_ENV_FILE = Path(__file__).resolve().parent.parent / ".env.test"
 if _TEST_ENV_FILE.exists():
@@ -32,9 +32,7 @@ if _TEST_ENV_FILE.exists():
 
 _raw_db_url = os.environ.get("TEST_DATABASE_URL") or os.environ.get("DATABASE_URL")
 if _raw_db_url is None:
-    raise RuntimeError(
-        "TEST_DATABASE_URL or DATABASE_URL must be set (see .env.test)."
-    )
+    raise RuntimeError("TEST_DATABASE_URL or DATABASE_URL must be set (see .env.test).")
 TEST_DATABASE_URL = normalize_database_url(_raw_db_url)
 if not TEST_DATABASE_URL:
     raise RuntimeError("Database URL is empty after normalization.")
@@ -48,13 +46,16 @@ os.environ.setdefault("ACCESS_TOKEN_EXPIRE_MINUTES", "30")
 os.environ.setdefault("ENVIRONMENT", "test")
 os.environ.setdefault("LOG_LEVEL", "WARNING")
 
-from app.core.config import get_settings  # noqa: E402
-from app.core.security import create_access_token, hash_password  # noqa: E402
-from app.db import session as db_session_module  # noqa: E402
-from app.db.base import Base  # noqa: E402
-from app.dependencies.database import get_db  # noqa: E402
-from app.main import create_app  # noqa: E402
-from app.models.super_admin import SuperAdmin  # noqa: E402
+from app.core.config import get_settings
+from app.core.security import create_access_token, hash_password
+from app.db import session as db_session_module
+from app.db.base import Base
+from app.dependencies.database import get_db
+from app.main import create_app
+from app.models.organization import Organization  # noqa: F401
+from app.models.super_admin import SuperAdmin
+from app.models.support_request import SupportRequest  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 get_settings.cache_clear()
 
@@ -136,12 +137,14 @@ async def test_session_factory(
 async def _truncate_super_admins(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
-    """Remove all rows from super_admins without dropping schema."""
-    async with session_factory() as session:
-        async with session.begin():
-            await session.execute(
-                text("TRUNCATE TABLE super_admins RESTART IDENTITY CASCADE")
+    """Remove Super Admin, user, organization, and support request rows."""
+    async with session_factory() as session, session.begin():
+        await session.execute(
+            text(
+                "TRUNCATE TABLE support_requests, users, organizations, "
+                "super_admins RESTART IDENTITY CASCADE"
             )
+        )
 
 
 async def _seed_super_admins(
@@ -217,14 +220,19 @@ async def client(
 
 
 @pytest.fixture
-def auth_tokens(test_users: dict) -> dict[str, str]:
-    """Pre-generated JWT access tokens for each seeded persona (except new)."""
+def auth_tokens(
+    test_users: dict,
+    seeded_super_admins: list[SuperAdmin],
+) -> dict[str, str]:
+    """JWT access tokens whose sub matches seeded Super Admin UUIDs."""
+    by_email = {admin.email: admin for admin in seeded_super_admins}
     tokens: dict[str, str] = {}
     for key, data in test_users.items():
         if data.get("seed", True) is False:
             continue
+        admin = by_email[data["email"]]
         tokens[key] = create_access_token(
-            subject=f"test-{key}-id",
-            claims={"email": data["email"], "role": "super_admin"},
+            subject=str(admin.id),
+            claims={"email": admin.email, "role": "super_admin"},
         )
     return tokens
