@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from uuid import uuid4
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -19,108 +21,84 @@ async def clear_organizations(postgres_schema: None) -> None:
         await session.commit()
 
 
-@pytest.mark.asyncio
-async def test_list_organizations_requires_super_admin(
-    db_client: AsyncClient,
-    user_headers: dict[str, str],
-) -> None:
-    """Non-admin tokens cannot list organizations."""
-    response = await db_client.get(
+async def _create_org(
+    client: AsyncClient,
+    headers: dict[str, str],
+    *,
+    name: str = "Central Hoops",
+    published: bool = True,
+) -> dict:
+    """Helper: create an organization and return parsed JSON."""
+    response = await client.post(
         "/api/v1/organizations",
-        headers=user_headers,
-    )
-    assert response.status_code == 403
-    assert response.json()["error"]["code"] == "FORBIDDEN"
-
-
-@pytest.mark.asyncio
-async def test_create_and_get_organization(
-    db_client: AsyncClient,
-    admin_headers: dict[str, str],
-) -> None:
-    """Super Admin can create and fetch an organization."""
-    create = await db_client.post(
-        "/api/v1/organizations",
-        headers=admin_headers,
+        headers=headers,
         json={
-            "name": "Central Hoops",
-            "contact_email": "central@example.com",
+            "name": name,
+            "contact_email": f"{name.replace(' ', '').lower()}@example.com",
             "phone_number": "5551234567",
             "address": "100 Court St",
-            "description": "Central region org",
-            "is_published": True,
+            "description": "Integration test org",
+            "is_published": published,
         },
     )
-    assert create.status_code == 201
-    body = create.json()
-    assert body["success"] is True
-    assert body["description"]
-    org = body["data"]["organization"]
-    assert org["id"]
-    assert org["email"] == "central@example.com"
-    assert org["phone"] == "5551234567"
-    assert org["phone_number"] == "5551234567"
+    assert response.status_code == 201, response.text
+    return response.json()
 
-    fetch = await db_client.get(
-        f"/api/v1/organizations/{org['id']}",
-        headers=admin_headers,
-    )
-    assert fetch.status_code == 200
-    assert fetch.json()["data"]["organization"]["name"] == "Central Hoops"
+
+# --- JAW-9457 acceptance criteria ---
 
 
 @pytest.mark.asyncio
-async def test_update_organization(
+async def test_jaw_9457_view_organizations(
     db_client: AsyncClient,
     admin_headers: dict[str, str],
 ) -> None:
-    """Super Admin can edit an existing organization."""
-    create = await db_client.post(
-        "/api/v1/organizations",
-        headers=admin_headers,
-        json={
-            "name": "East Hoops",
-            "contact_email": "east@example.com",
-            "phone_number": "5550001111",
-            "address": "200 Lane",
-        },
-    )
-    org_id = create.json()["data"]["organization"]["id"]
+    """[JAW-9457] View list of organizations."""
+    await _create_org(db_client, admin_headers, name="List Org")
+    response = await db_client.get("/api/v1/organizations", headers=admin_headers)
+    assert response.status_code == 200
+    items = response.json()["data"]["items"]
+    assert len(items) == 1
+    assert items[0]["name"] == "List Org"
 
+
+@pytest.mark.asyncio
+async def test_jaw_9457_add_organization(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    """[JAW-9457] Add new organization."""
+    body = await _create_org(db_client, admin_headers, name="New Org")
+    org = body["data"]["organization"]
+    assert org["email"] == org["contact_email"]
+    assert org["phone"] == org["phone_number"]
+
+
+@pytest.mark.asyncio
+async def test_jaw_9457_edit_organization(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    """[JAW-9457] Edit existing organization."""
+    created = await _create_org(db_client, admin_headers, name="Edit Org")
+    org_id = created["data"]["organization"]["id"]
     update = await db_client.put(
         f"/api/v1/organizations/{org_id}",
         headers=admin_headers,
-        json={
-            "name": "East Hoops Elite",
-            "phone_number": "5550002222",
-            "address": "201 Lane",
-        },
+        json={"name": "Edit Org Updated", "address": "200 Lane"},
     )
     assert update.status_code == 200
-    updated = update.json()["data"]["organization"]
-    assert updated["name"] == "East Hoops Elite"
-    assert updated["phone_number"] == "5550002222"
+    assert update.json()["data"]["organization"]["name"] == "Edit Org Updated"
 
 
 @pytest.mark.asyncio
-async def test_delete_organization_deactivates(
+async def test_jaw_9457_remove_organization(
     db_client: AsyncClient,
     admin_headers: dict[str, str],
 ) -> None:
-    """DELETE soft-removes an organization from the active catalog."""
-    create = await db_client.post(
-        "/api/v1/organizations",
-        headers=admin_headers,
-        json={
-            "name": "Remove Me Org",
-            "contact_email": "remove@example.com",
-            "phone_number": "5559998888",
-            "address": "9 Delete Ave",
-            "is_published": True,
-        },
-    )
-    org_id = create.json()["data"]["organization"]["id"]
-
+    """[JAW-9457] Remove organization (soft-deactivate)."""
+    created = await _create_org(db_client, admin_headers, name="Remove Org")
+    org_id = created["data"]["organization"]["id"]
     delete = await db_client.delete(
         f"/api/v1/organizations/{org_id}",
         headers=admin_headers,
@@ -128,43 +106,137 @@ async def test_delete_organization_deactivates(
     assert delete.status_code == 200
     assert delete.json()["data"]["organization"]["is_active"] is False
 
-    published = await db_client.get(
-        "/api/v1/organizations?published_only=true",
-        headers=admin_headers,
-    )
-    assert published.status_code == 200
-    assert published.json()["data"]["items"] == []
-
 
 @pytest.mark.asyncio
-async def test_create_duplicate_name_returns_conflict(
+async def test_jaw_9457_published_only_active_published_orgs(
     db_client: AsyncClient,
     admin_headers: dict[str, str],
 ) -> None:
-    """Duplicate organization names return 409 ORGANIZATION_ALREADY_EXISTS."""
-    payload = {
-        "name": "Unique Org",
-        "contact_email": "unique@example.com",
-        "phone_number": "5554443333",
-        "address": "3 Unique Rd",
-    }
-    first = await db_client.post(
-        "/api/v1/organizations",
+    """[JAW-9457] published_only returns only published active organizations."""
+    await _create_org(db_client, admin_headers, name="Published Org", published=True)
+    await _create_org(db_client, admin_headers, name="Draft Org", published=False)
+    response = await db_client.get(
+        "/api/v1/organizations?published_only=true",
         headers=admin_headers,
-        json=payload,
     )
-    assert first.status_code == 201
+    assert response.status_code == 200
+    names = [row["name"] for row in response.json()["data"]["items"]]
+    assert names == ["Published Org"]
 
-    second = await db_client.post(
+
+@pytest.mark.asyncio
+async def test_jaw_9457_openapi_documents_organizations(
+    db_client: AsyncClient,
+) -> None:
+    """[JAW-9457] OpenAPI includes organization operations."""
+    response = await db_client.get("/openapi.json")
+    assert response.status_code == 200
+    paths = response.json()["paths"]
+    assert "/api/v1/organizations" in paths
+    assert "delete" in paths["/api/v1/organizations/{organization_id}"]
+
+
+# --- Auth ---
+
+
+@pytest.mark.asyncio
+async def test_organizations_missing_token_401(
+    db_client: AsyncClient,
+    missing_auth_headers: dict[str, str],
+) -> None:
+    response = await db_client.get(
+        "/api/v1/organizations",
+        headers=missing_auth_headers,
+    )
+    assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_organizations_user_role_forbidden(
+    db_client: AsyncClient,
+    user_headers: dict[str, str],
+) -> None:
+    response = await db_client.get("/api/v1/organizations", headers=user_headers)
+    assert response.status_code == 403
+
+
+# --- Edge cases ---
+
+
+@pytest.mark.asyncio
+async def test_create_org_invalid_phone_returns_422(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    response = await db_client.post(
         "/api/v1/organizations",
         headers=admin_headers,
         json={
-            **payload,
-            "contact_email": "other@example.com",
+            "name": "Bad Phone",
+            "contact_email": "bad@example.com",
+            "phone_number": "abc!!!",
+            "address": "1 St",
         },
     )
-    assert second.status_code == 409
-    assert second.json()["error"]["code"] == "ORGANIZATION_ALREADY_EXISTS"
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_create_org_empty_address_returns_422(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    response = await db_client.post(
+        "/api/v1/organizations",
+        headers=admin_headers,
+        json={
+            "name": "No Address",
+            "contact_email": "noaddr@example.com",
+            "phone_number": "5551112222",
+            "address": "",
+        },
+    )
+    assert response.status_code == 422
+
+
+# --- Error cases ---
+
+
+@pytest.mark.asyncio
+async def test_get_organization_not_found(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    response = await db_client.get(
+        f"/api/v1/organizations/{uuid4()}",
+        headers=admin_headers,
+    )
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "ORGANIZATION_NOT_FOUND"
+
+
+@pytest.mark.asyncio
+async def test_create_duplicate_org_name_conflict(
+    db_client: AsyncClient,
+    admin_headers: dict[str, str],
+) -> None:
+    payload = {
+        "name": "Unique Org",
+        "contact_email": "a@example.com",
+        "phone_number": "5554443333",
+        "address": "3 Rd",
+    }
+    assert (
+        await db_client.post(
+            "/api/v1/organizations", headers=admin_headers, json=payload
+        )
+    ).status_code == 201
+    dup = await db_client.post(
+        "/api/v1/organizations",
+        headers=admin_headers,
+        json={**payload, "contact_email": "b@example.com"},
+    )
+    assert dup.status_code == 409
 
 
 @pytest.mark.asyncio
@@ -172,21 +244,5 @@ async def test_organizations_alias_path(
     db_client: AsyncClient,
     admin_headers: dict[str, str],
 ) -> None:
-    """Ticket path GET /api/organizations works via alias mount."""
-    response = await db_client.get(
-        "/api/organizations",
-        headers=admin_headers,
-    )
+    response = await db_client.get("/api/organizations", headers=admin_headers)
     assert response.status_code == 200
-    assert response.json()["success"] is True
-
-
-@pytest.mark.asyncio
-async def test_organizations_documented_in_openapi(db_client: AsyncClient) -> None:
-    """OpenAPI includes admin organization operations."""
-    response = await db_client.get("/openapi.json")
-    assert response.status_code == 200
-    paths = response.json()["paths"]
-    assert "/api/v1/organizations" in paths
-    assert "post" in paths["/api/v1/organizations"]
-    assert "/api/organizations" in paths

@@ -90,15 +90,15 @@ ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 LIVE_ADMIN_EMAIL = "admin@test.com"
-LIVE_ADMIN_PASSWORD = "TestAdmin123!"
+LIVE_ADMIN_PASSWORD = os.environ.get("TEST_LIVE_ADMIN_PASSWORD") or f"TestAdmin{secrets.token_hex(4)}!"
 LIVE_USER_EMAIL = "user@test.com"
-LIVE_USER_PASSWORD = "TestUser123!"
+LIVE_USER_PASSWORD = os.environ.get("TEST_LIVE_USER_PASSWORD") or f"TestUser{secrets.token_hex(4)}!"
 LIVE_VIEWER_EMAIL = "viewer@test.com"
-LIVE_VIEWER_PASSWORD = "TestViewer123!"
+LIVE_VIEWER_PASSWORD = os.environ.get("TEST_LIVE_VIEWER_PASSWORD") or f"TestViewer{secrets.token_hex(4)}!"
 LIVE_INACTIVE_EMAIL = "inactive@test.com"
-LIVE_INACTIVE_PASSWORD = "TestInactive1!"
+LIVE_INACTIVE_PASSWORD = os.environ.get("TEST_LIVE_INACTIVE_PASSWORD") or f"TestInactive{secrets.token_hex(4)}!1"
 LIVE_NEW_EMAIL = "newuser@test.com"
-LIVE_NEW_PASSWORD = "NewUser123!"
+LIVE_NEW_PASSWORD = os.environ.get("TEST_LIVE_NEW_PASSWORD") or f"NewUser{secrets.token_hex(4)}!1"
 
 _HASH_CACHE: dict[str, str] = {}
 
@@ -296,3 +296,35 @@ async def db_client(seeded_users: dict[str, User]) -> AsyncIterator[AsyncClient]
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             yield ac
     app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def missing_auth_headers() -> dict[str, str]:
+    """Empty headers for unauthenticated request tests."""
+    return {}
+
+
+@pytest.fixture
+def invalid_token_headers() -> dict[str, str]:
+    """Malformed bearer token for auth rejection tests."""
+    return {"Authorization": "Bearer not-a-valid-jwt"}
+
+
+@pytest.fixture
+def stale_token_headers(seeded_users: dict[str, User]) -> dict[str, str]:
+    """Access token with an outdated token_version."""
+    user = seeded_users["user"]
+    token = create_access_token(user.id, token_version=user.token_version + 99)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def new_user_registration_payload() -> dict[str, str]:
+    """Payload for a user not yet persisted (JAW-9460 registration flow)."""
+    return {
+        "first_name": "New",
+        "last_name": "User",
+        "email": LIVE_NEW_EMAIL,
+        "password": LIVE_NEW_PASSWORD,
+        "role": "Coach",
+    }
