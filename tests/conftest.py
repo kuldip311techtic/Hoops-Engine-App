@@ -58,7 +58,7 @@ os.environ.setdefault("AUTH0_DOMAIN", "prod.example.auth0.com")
 os.environ.setdefault("AUTH0_SANDBOX_DOMAIN", "sandbox.example.auth0.com")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 
-_fallback_test_url = "postgresql+asyncpg://postgres:postgres@localhost:5432/test_db"
+_fallback_test_url = "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine"
 _test_url = _as_asyncpg(
     os.environ.get("TEST_DATABASE_URL")
     or os.environ.get("DATABASE_URL")
@@ -67,21 +67,24 @@ _test_url = _as_asyncpg(
 os.environ["DATABASE_URL"] = _test_url
 os.environ["TEST_DATABASE_URL"] = _test_url
 
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import get_settings
 
 get_settings.cache_clear()
 
-import pytest  # noqa: E402
-from httpx import ASGITransport, AsyncClient  # noqa: E402
-from sqlalchemy import text  # noqa: E402
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
 
-from app.core.security import create_access_token, hash_password  # noqa: E402
-from app.dependencies.auth import get_auth_service  # noqa: E402
-from app.dependencies.db import get_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.user import User, UserRole  # noqa: E402
-from app.services.auth_service import AuthService  # noqa: E402
-from tests.fakes import InMemorySubscriptionRepository, InMemoryUserRepository  # noqa: E402
+from app.core.security import create_access_token, hash_password
+from app.dependencies.auth import get_auth_service
+from app.dependencies.db import get_db
+from app.main import app
+from app.models.user import User, UserRole
+from app.services.auth_service import AuthService
+from tests.fakes import (
+    InMemorySubscriptionRepository,
+    InMemoryUserRepository,
+)
 
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"

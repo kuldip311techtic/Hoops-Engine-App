@@ -1,6 +1,6 @@
 """Authentication use-cases: login, register, refresh, change password."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from uuid import UUID
 
 from jose import JWTError
@@ -104,8 +104,8 @@ class AuthService:
         if subscription.status == SubscriptionStatus.CANCELLED:
             end = subscription.current_period_end
             if end.tzinfo is None:
-                end = end.replace(tzinfo=timezone.utc)
-            return end > datetime.now(timezone.utc)
+                end = end.replace(tzinfo=UTC)
+            return end > datetime.now(UTC)
         return False
 
     async def login(

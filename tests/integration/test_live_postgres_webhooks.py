@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from httpx import AsyncClient
@@ -83,7 +83,7 @@ async def test_billing_webhook_cancelled_retains_access(
     seeded_users: dict[str, User],
 ) -> None:
     """Billing CANCELLED webhook stores period end; has_access remains True."""
-    end = (datetime.now(timezone.utc) + timedelta(days=14)).strftime(
+    end = (datetime.now(UTC) + timedelta(days=14)).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
     payload = {

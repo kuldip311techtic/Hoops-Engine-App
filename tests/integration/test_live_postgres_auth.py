@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -13,8 +13,8 @@ from sqlalchemy.exc import IntegrityError
 
 from app.core.config import get_settings
 from app.core.security import hash_password
-from app.exceptions.base import ForbiddenError
 from app.db.session import AsyncSessionLocal
+from app.exceptions.base import ForbiddenError
 from app.models.subscription import Subscription, SubscriptionStatus
 from app.models.user import User, UserRole
 from app.services.auth_service import AuthService
@@ -327,7 +327,7 @@ async def test_expired_access_token_rejected(
             "sub": str(seeded_users["admin"].id),
             "type": "access",
             "ver": seeded_users["admin"].token_version,
-            "exp": datetime.now(timezone.utc) - timedelta(minutes=5),
+            "exp": datetime.now(UTC) - timedelta(minutes=5),
         },
         settings.jwt_secret_key,
         algorithm=settings.jwt_algorithm,
@@ -352,8 +352,8 @@ async def test_cancelled_subscription_retains_access_until_period_end(
                 id=uuid4(),
                 user_id=user.id,
                 status=SubscriptionStatus.CANCELLED,
-                current_period_end=datetime.now(timezone.utc) + timedelta(days=5),
-                cancelled_at=datetime.now(timezone.utc),
+                current_period_end=datetime.now(UTC) + timedelta(days=5),
+                cancelled_at=datetime.now(UTC),
             )
         )
         await session.commit()
@@ -383,8 +383,8 @@ async def test_cancelled_subscription_denies_access_after_period_end(
                 id=uuid4(),
                 user_id=user.id,
                 status=SubscriptionStatus.CANCELLED,
-                current_period_end=datetime.now(timezone.utc) - timedelta(days=1),
-                cancelled_at=datetime.now(timezone.utc) - timedelta(days=10),
+                current_period_end=datetime.now(UTC) - timedelta(days=1),
+                cancelled_at=datetime.now(UTC) - timedelta(days=10),
             )
         )
         await session.commit()
@@ -428,7 +428,7 @@ async def test_subscription_fk_rejects_unknown_user(
             Subscription(
                 user_id=uuid4(),
                 status=SubscriptionStatus.ACTIVE,
-                current_period_end=datetime.now(timezone.utc) + timedelta(days=1),
+                current_period_end=datetime.now(UTC) + timedelta(days=1),
             )
         )
         with pytest.raises(IntegrityError):
@@ -447,7 +447,7 @@ async def test_subscription_cascade_on_user_delete(
             Subscription(
                 user_id=user.id,
                 status=SubscriptionStatus.ACTIVE,
-                current_period_end=datetime.now(timezone.utc) + timedelta(days=30),
+                current_period_end=datetime.now(UTC) + timedelta(days=30),
             )
         )
         await session.commit()

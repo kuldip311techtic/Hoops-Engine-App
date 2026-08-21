@@ -1,6 +1,6 @@
 """Password hashing and JWT helpers for the OAuth2 bearer flow."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
 
@@ -29,7 +29,7 @@ def _encode(claims: dict[str, Any], expires_delta: timedelta) -> str:
     """Encode a JWT with an expiration claim using application settings."""
     settings = get_settings()
     payload = dict(claims)
-    payload["exp"] = datetime.now(timezone.utc) + expires_delta
+    payload["exp"] = datetime.now(UTC) + expires_delta
     return jwt.encode(
         payload,
         settings.jwt_secret_key,

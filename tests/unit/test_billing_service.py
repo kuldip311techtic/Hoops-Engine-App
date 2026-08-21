@@ -1,6 +1,6 @@
 """Billing access-rule unit tests."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from app.models.subscription import Subscription, SubscriptionStatus
@@ -27,7 +27,7 @@ def test_cancelled_retains_access_until_period_end() -> None:
         id=uuid4(),
         user_id=user.id,
         status=SubscriptionStatus.CANCELLED,
-        current_period_end=datetime.now(timezone.utc) + timedelta(days=3),
+        current_period_end=datetime.now(UTC) + timedelta(days=3),
     )
     assert AuthService.subscription_allows_access(user, sub) is True
 
@@ -39,7 +39,7 @@ def test_cancelled_denies_access_after_period_end() -> None:
         id=uuid4(),
         user_id=user.id,
         status=SubscriptionStatus.CANCELLED,
-        current_period_end=datetime.now(timezone.utc) - timedelta(days=1),
+        current_period_end=datetime.now(UTC) - timedelta(days=1),
     )
     assert AuthService.subscription_allows_access(user, sub) is False
 
@@ -51,6 +51,6 @@ def test_super_admin_not_billed() -> None:
         id=uuid4(),
         user_id=user.id,
         status=SubscriptionStatus.EXPIRED,
-        current_period_end=datetime.now(timezone.utc) - timedelta(days=30),
+        current_period_end=datetime.now(UTC) - timedelta(days=30),
     )
     assert AuthService.subscription_allows_access(user, sub) is True

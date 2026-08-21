@@ -23,9 +23,9 @@ _package_root = next(
 if str(_package_root) not in sys.path:
     sys.path.insert(0, str(_package_root))
 
-from app.core.config import get_settings  # noqa: E402
-from app.db.base import Base  # noqa: E402
-from app.models import Subscription, User  # noqa: E402, F401
+from app.core.config import get_settings
+from app.db.base import Base
+from app.models import Subscription, User  # noqa: F401
 
 config = context.config
 

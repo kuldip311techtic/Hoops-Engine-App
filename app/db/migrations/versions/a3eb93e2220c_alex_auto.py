@@ -5,16 +5,16 @@ Revises: ac03be72f0af
 Create Date: 2026-08-21 16:25:43.138725
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision: str = "a3eb93e2220c"
-down_revision: Union[str, None] = "ac03be72f0af"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "ac03be72f0af"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 user_role = postgresql.ENUM(
     "SUPER_ADMIN",

@@ -1,7 +1,7 @@
 """Billing webhook use-case and subscription access updates."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from loguru import logger
 
@@ -43,7 +43,7 @@ class BillingService:
             status = SubscriptionStatus.EXPIRED
         cancelled_at = None
         if status == SubscriptionStatus.CANCELLED:
-            cancelled_at = datetime.now(timezone.utc)
+            cancelled_at = datetime.now(UTC)
         await self._subscriptions.upsert(
             user_id=user.id,
             status=status,

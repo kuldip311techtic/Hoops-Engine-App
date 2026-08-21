@@ -80,7 +80,7 @@ def create_app() -> FastAPI:
     return application
 
 
-async def _rate_limit_handler(request, exc):  # noqa: ARG001
+async def _rate_limit_handler(request, exc):
     """Return a 429 envelope when slowapi blocks a client."""
     return JSONResponse(
         status_code=429,
