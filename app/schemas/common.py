@@ -48,6 +48,14 @@ class SuccessResponse(BaseModel):
         description="Response payload.",
         examples=[{"status": "ok"}],
     )
+    error: ErrorDetail | None = Field(
+        default=None,
+        description=(
+            "Always null on success. Admin FE bindings expect this key on every "
+            "response so the same envelope shape is used for success and failure."
+        ),
+        examples=[None],
+    )
 
 
 class AdminSuccessResponse(SuccessResponse):
@@ -83,7 +91,7 @@ class ErrorResponse(BaseModel):
 
 def success_body(message: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build a success envelope dict."""
-    return {"success": True, "message": message, "data": data or {}}
+    return {"success": True, "message": message, "data": data or {}, "error": None}
 
 
 def error_body(message: str, code: str, details: Any = None) -> dict[str, Any]:
