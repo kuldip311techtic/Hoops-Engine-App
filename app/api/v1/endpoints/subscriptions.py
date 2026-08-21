@@ -1,4 +1,5 @@
-"""Admin subscription plan routes. Thin: validate DTO, call service, wrap envelope."""
+```python
+"""Admin subscription plan routes. Thin: validate DTO, call service, wrap envelope."
 
 from uuid import UUID
 
@@ -40,7 +41,6 @@ _common_responses = {
     422: _errors[422],
     500: _errors[500],
 }
-
 
 @router.get(
     "",
@@ -91,198 +91,8 @@ async def list_subscription_plans(
         "success": True,
         "message": "Subscription plans retrieved",
         "description": "Subscription plans retrieved successfully.",
-        "data": {"items": [item.model_dump(mode="json") for item in items]},
-    }
-
-
-@router.post(
-    "",
-    response_model=AdminSuccessResponse,
-    status_code=status.HTTP_201_CREATED,
-    operation_id="create_subscription_plan",
-    summary="Create a subscription plan",
-    description=(
-        "Super Admin only. Creates a new subscription plan with `name`, `price`, "
-        "and `billing_cycle` (Monthly or Yearly). Optional `description` and "
-        "`is_published` may be supplied. Duplicate plan names return 409 "
-        "SUBSCRIPTION_PLAN_ALREADY_EXISTS. Requires Bearer token for Super Admin."
-    ),
-    tags=["admin"],
-    responses={
-        201: {
-            "description": "Plan created.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": True,
-                        "message": "Subscription plan created",
-                        "description": "The subscription plan was added successfully.",
-                        "data": _plan_example,
-                    }
-                }
-            },
+        "data": {
+            "items": [item.model_dump(mode="json") for item in items],
         },
-        **_common_responses,
-    },
-)
-async def create_subscription_plan(
-    body: SubscriptionPlanCreateRequest,
-    _admin: User = Depends(get_current_super_admin),
-    service: SubscriptionPlanService = Depends(get_subscription_plan_service),
-) -> dict:
-    """Add a subscription plan to the catalog."""
-    plan = await service.create_plan(
-        name=body.name,
-        description=body.description,
-        price=body.price,
-        billing_cycle=body.billing_cycle,
-        is_published=body.is_published,
-    )
-    return {
-        "success": True,
-        "message": "Subscription plan created",
-        "description": "The subscription plan was added successfully.",
-        "data": plan.model_dump(mode="json"),
     }
-
-
-@router.get(
-    "/{plan_id}",
-    response_model=AdminSuccessResponse,
-    status_code=status.HTTP_200_OK,
-    operation_id="get_subscription_plan",
-    summary="Get a subscription plan",
-    description=(
-        "Super Admin only. Returns a single subscription plan by id. "
-        "Unknown ids return 404 SUBSCRIPTION_PLAN_NOT_FOUND."
-    ),
-    tags=["admin"],
-    responses={
-        200: {
-            "description": "Plan retrieved.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": True,
-                        "message": "Subscription plan retrieved",
-                        "description": "Subscription plan retrieved successfully.",
-                        "data": _plan_example,
-                    }
-                }
-            },
-        },
-        **_common_responses,
-    },
-)
-async def get_subscription_plan(
-    plan_id: UUID,
-    _admin: User = Depends(get_current_super_admin),
-    service: SubscriptionPlanService = Depends(get_subscription_plan_service),
-) -> dict:
-    """Return one subscription plan."""
-    plan = await service.get_plan(plan_id)
-    return {
-        "success": True,
-        "message": "Subscription plan retrieved",
-        "description": "Subscription plan retrieved successfully.",
-        "data": plan.model_dump(mode="json"),
-    }
-
-
-@router.put(
-    "/{plan_id}",
-    response_model=AdminSuccessResponse,
-    status_code=status.HTTP_200_OK,
-    operation_id="update_subscription_plan",
-    summary="Update a subscription plan",
-    description=(
-        "Super Admin only. Partially updates a subscription plan. All body fields "
-        "are optional. Renaming to an existing plan name returns 409 "
-        "SUBSCRIPTION_PLAN_ALREADY_EXISTS. Unknown ids return 404."
-    ),
-    tags=["admin"],
-    responses={
-        200: {
-            "description": "Plan updated.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": True,
-                        "message": "Subscription plan updated",
-                        "description": "The subscription plan was updated successfully.",
-                        "data": _plan_example,
-                    }
-                }
-            },
-        },
-        **_common_responses,
-    },
-)
-async def update_subscription_plan(
-    plan_id: UUID,
-    body: SubscriptionPlanUpdateRequest,
-    _admin: User = Depends(get_current_super_admin),
-    service: SubscriptionPlanService = Depends(get_subscription_plan_service),
-) -> dict:
-    """Edit an existing subscription plan."""
-    plan = await service.update_plan(
-        plan_id,
-        name=body.name,
-        description=body.description,
-        price=body.price,
-        billing_cycle=body.billing_cycle,
-        is_published=body.is_published,
-    )
-    return {
-        "success": True,
-        "message": "Subscription plan updated",
-        "description": "The subscription plan was updated successfully.",
-        "data": plan.model_dump(mode="json"),
-    }
-
-
-@router.delete(
-    "/{plan_id}",
-    response_model=AdminSuccessResponse,
-    status_code=status.HTTP_200_OK,
-    operation_id="delete_subscription_plan",
-    summary="Remove a subscription plan",
-    description=(
-        "Super Admin only. Soft-removes a plan by setting `is_published` to false "
-        "so it is hidden from end users while preserving history. Unknown ids "
-        "return 404 SUBSCRIPTION_PLAN_NOT_FOUND."
-    ),
-    tags=["admin"],
-    responses={
-        200: {
-            "description": "Plan removed (unpublished).",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": True,
-                        "message": "Subscription plan removed",
-                        "description": "The subscription plan was removed successfully.",
-                        "data": {
-                            **_plan_example,
-                            "is_published": False,
-                        },
-                    }
-                }
-            },
-        },
-        **_common_responses,
-    },
-)
-async def delete_subscription_plan(
-    plan_id: UUID,
-    _admin: User = Depends(get_current_super_admin),
-    service: SubscriptionPlanService = Depends(get_subscription_plan_service),
-) -> dict:
-    """Remove a subscription plan from the published catalog."""
-    plan = await service.remove_plan(plan_id)
-    return {
-        "success": True,
-        "message": "Subscription plan removed",
-        "description": "The subscription plan was removed successfully.",
-        "data": plan.model_dump(mode="json"),
-    }
+```
