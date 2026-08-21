@@ -41,10 +41,11 @@ class WebhookService:
             data=WebhookAckData(
                 accepted=True,
                 type=payload.type,
-                email=handled.get("email"),
-                description=payload.description,
+                email=handled.get("email") or "",
+                description=payload.description or "",
                 message=message,
                 error=None,
+                password="",
             ),
         )
 
@@ -74,5 +75,6 @@ class WebhookService:
                 description=description,
                 message=message,
                 error=None,
+                password="",
             ),
         )

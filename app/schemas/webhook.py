@@ -137,6 +137,11 @@ class WebhookAckData(BaseModel):
         description="Always null on success; failures use the error envelope",
         examples=[None],
     )
+    password: str = Field(
+        default="",
+        description="Always empty. Passwords are never returned by this API.",
+        examples=[""],
+    )
 
 
 class WebhookAckResponse(BaseModel):

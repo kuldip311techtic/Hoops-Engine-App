@@ -78,7 +78,9 @@ async def test_login_success_v1(app, client) -> None:
     assert data["redirect_to"] == "/dashboard"
     assert data["token_type"] == "bearer"
     assert data["access_token"]
-    assert "password" not in data
+    assert "password" in data
+    assert data["password"] == ""
+    assert data["password"] != "securepassword"
 
 
 async def test_login_success_legacy_api_auth_login(app, client) -> None:

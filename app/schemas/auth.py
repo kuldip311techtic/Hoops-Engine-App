@@ -138,6 +138,14 @@ class LoginData(BaseModel):
         description="Authenticated Super Admin email",
         examples=["admin@example.com"],
     )
+    password: str = Field(
+        default="",
+        description=(
+            "Always empty. The login form sends password; this API never "
+            "echoes the secret back."
+        ),
+        examples=[""],
+    )
     description: str = Field(
         ...,
         description="UI copy describing the next step after login",
@@ -189,6 +197,7 @@ class LoginResponse(BaseModel):
                         "token_type": "bearer",
                         "expires_in": 1800,
                         "email": "admin@example.com",
+                        "password": "",
                         "description": "Redirect the Super Admin to the dashboard.",
                         "message": "Login successful",
                         "error": None,

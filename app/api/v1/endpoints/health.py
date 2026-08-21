@@ -55,7 +55,14 @@ def get_readiness_service(
                     "example": {
                         "success": True,
                         "message": "Service is healthy",
-                        "data": {"status": "ok"},
+                        "data": {
+                            "status": "ok",
+                            "email": "",
+                            "password": "",
+                            "description": "Public liveness probe",
+                            "message": "Service is healthy",
+                            "error": None,
+                        },
                     }
                 }
             },
@@ -93,7 +100,14 @@ async def health_check(
                     "example": {
                         "success": True,
                         "message": "Service is ready",
-                        "data": {"status": "ok"},
+                        "data": {
+                            "status": "ok",
+                            "email": "",
+                            "password": "",
+                            "description": "Public readiness probe",
+                            "message": "Service is ready",
+                            "error": None,
+                        },
                     }
                 }
             },

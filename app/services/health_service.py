@@ -18,7 +18,14 @@ class HealthService:
         return HealthResponse(
             success=True,
             message="Service is healthy",
-            data=HealthData(status="ok"),
+            data=HealthData(
+                status="ok",
+                email="",
+                password="",
+                description="Public liveness probe",
+                message="Service is healthy",
+                error=None,
+            ),
         )
 
     async def readiness(self) -> HealthResponse:
@@ -47,5 +54,12 @@ class HealthService:
         return HealthResponse(
             success=True,
             message="Service is ready",
-            data=HealthData(status="ok"),
+            data=HealthData(
+                status="ok",
+                email="",
+                password="",
+                description="Public readiness probe",
+                message="Service is ready",
+                error=None,
+            ),
         )

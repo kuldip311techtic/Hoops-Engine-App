@@ -61,6 +61,7 @@ class AuthService:
             token_type="bearer",
             expires_in=self._settings.access_token_expire_minutes * 60,
             email=admin.email,
+            password="",
             description=description,
             message=message,
             error=None,
