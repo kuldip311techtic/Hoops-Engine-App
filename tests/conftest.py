@@ -3,22 +3,35 @@
 from __future__ import annotations
 
 import os
+import secrets
 from collections.abc import AsyncIterator
 from unittest.mock import AsyncMock, MagicMock
 
 os.environ["ENVIRONMENT"] = "test"
-os.environ.setdefault("JWT_SECRET_KEY", "test-secret-key-for-jwt-hs256-tests")
-os.environ.setdefault("JWT_SECRET", "test-secret-key-for-jwt-hs256-tests")
+
+
+def _ensure_env(name: str) -> str:
+    """Reuse an existing env value; otherwise generate a test-only token."""
+    value = os.environ.get(name)
+    if value:
+        return value
+    generated = secrets.token_urlsafe(32)
+    os.environ[name] = generated
+    return generated
+
+
+_ensure_env("JWT_SECRET_KEY")
+os.environ.setdefault("JWT_SECRET", os.environ["JWT_SECRET_KEY"])
 os.environ.setdefault(
     "DATABASE_URL",
-    "postgresql+asyncpg://user:password@localhost:5432/hoopsengine",
+    "postgresql+asyncpg://pytest@127.0.0.1:5432/hoopsengine",
 )
 os.environ.setdefault(
     "TEST_DATABASE_URL",
-    "postgresql+asyncpg://user:password@localhost:5432/hoopsengine_test",
+    "postgresql+asyncpg://pytest@127.0.0.1:5432/hoopsengine_test",
 )
-os.environ.setdefault("AUTH0_WEBHOOK_SECRET", "auth0-test-secret")
-os.environ.setdefault("BILLING_WEBHOOK_SECRET", "billing-test-secret")
+_ensure_env("AUTH0_WEBHOOK_SECRET")
+_ensure_env("BILLING_WEBHOOK_SECRET")
 os.environ.setdefault("AUTH0_DOMAIN", "prod.example.auth0.com")
 os.environ.setdefault("AUTH0_SANDBOX_DOMAIN", "sandbox.example.auth0.com")
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
@@ -39,7 +52,7 @@ from app.services.auth_service import AuthService  # noqa: E402
 from tests.fakes import InMemorySubscriptionRepository, InMemoryUserRepository  # noqa: E402
 
 ADMIN_EMAIL = "admin@example.com"
-ADMIN_PASSWORD = "Admin@123!"
+ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 
 async def _fake_db() -> AsyncIterator[MagicMock]:
