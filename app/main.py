@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.routing import APIRoute
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
@@ -16,6 +17,13 @@ from app.middleware.auth import AuthMiddleware
 from app.middleware.cors import add_cors_middleware
 from app.middleware.logging import RequestLoggingMiddleware
 from app.middleware.rate_limiter import limiter, rate_limit_exceeded_handler
+
+
+def _unique_operation_id(route: APIRoute) -> str:
+    """Build a stable OpenAPI operationId including method and path."""
+    method = "_".join(sorted(route.methods - {"HEAD", "OPTIONS"})).lower()
+    path = route.path_format.replace("/", "_").replace("{", "").replace("}", "")
+    return f"{route.name}{path}_{method}".strip("_")
 
 
 @asynccontextmanager
@@ -34,12 +42,17 @@ def create_app() -> FastAPI:
         description=(
             "Backend API for Hoops Engine. All successful responses use "
             "``{success, message, data}``. Errors use "
-            "``{success, message, error: {code, details}}``."
+            "``{success, message, error: {code, details}}``. "
+            "Super Admin login is public JSON (email + password); "
+            "change-password requires a Bearer access token. "
+            "Login returns HTTP 200 with ``data.redirect_to`` — not HTTP 302."
         ),
         version="0.1.0",
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
+        generate_unique_id_function=_unique_operation_id,
+        swagger_ui_parameters={"persistAuthorization": True},
         openapi_tags=[
             {
                 "name": "health",

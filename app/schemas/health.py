@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class HealthData(BaseModel):
@@ -18,7 +18,23 @@ class HealthData(BaseModel):
 class HealthResponse(BaseModel):
     """Successful health-check envelope."""
 
-    success: Literal[True] = Field(default=True, description="Always true on success")
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "success": True,
+                    "message": "Service is healthy",
+                    "data": {"status": "ok"},
+                }
+            ]
+        }
+    )
+
+    success: Literal[True] = Field(
+        default=True,
+        description="Always true on success",
+        examples=[True],
+    )
     message: str = Field(
         ...,
         description="UI-safe status message",
