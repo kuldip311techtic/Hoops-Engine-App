@@ -51,11 +51,11 @@ async def test_unhandled_error_does_not_leak_internal_message(app) -> None:
     """500 responses never include exception text or stack traces."""
     from httpx import ASGITransport, AsyncClient
 
-    secret = "secret-sql-trace-do-not-leak"
+    internal_marker = "internal-db-trace-must-not-appear"
 
     @app.get("/api/v1/_boom")
     async def _boom() -> dict:
-        raise RuntimeError(secret)
+        raise RuntimeError(internal_marker)
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
@@ -64,5 +64,5 @@ async def test_unhandled_error_does_not_leak_internal_message(app) -> None:
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "INTERNAL_SERVER_ERROR"
-    assert secret not in body["message"]
-    assert secret not in response.text
+    assert internal_marker not in body["message"]
+    assert internal_marker not in response.text
