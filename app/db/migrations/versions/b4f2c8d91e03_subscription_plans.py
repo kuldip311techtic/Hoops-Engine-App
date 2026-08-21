@@ -20,12 +20,17 @@ billing_cycle = postgresql.ENUM(
     "MONTHLY",
     "YEARLY",
     name="billing_cycle",
+    create_type=False,
 )
 
 
 def upgrade() -> None:
     """Create subscription_plans table for admin-managed offerings."""
-    billing_cycle.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    postgresql.ENUM("MONTHLY", "YEARLY", name="billing_cycle").create(
+        bind,
+        checkfirst=True,
+    )
     op.create_table(
         "subscription_plans",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True, nullable=False),
@@ -64,4 +69,7 @@ def downgrade() -> None:
     """Drop subscription_plans table."""
     op.drop_index("ix_subscription_plans_name", table_name="subscription_plans")
     op.drop_table("subscription_plans")
-    billing_cycle.drop(op.get_bind(), checkfirst=True)
+    postgresql.ENUM("MONTHLY", "YEARLY", name="billing_cycle").drop(
+        op.get_bind(),
+        checkfirst=True,
+    )
