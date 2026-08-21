@@ -180,7 +180,7 @@ def postgres_schema() -> None:
     from sqlalchemy import create_engine
 
     from app.db.base import Base
-    from app.models import Subscription, User  # noqa: F401
+    from app.models import Organization, Subscription, SubscriptionPlan, User  # noqa: F401
 
     cfg = Config(str(ROOT / "alembic.ini"))
     command.upgrade(cfg, "head")

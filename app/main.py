@@ -9,6 +9,9 @@ from slowapi.middleware import SlowAPIMiddleware
 from starlette.responses import JSONResponse
 
 from app.api.v1.endpoints import auth as auth_endpoints
+from app.api.v1.endpoints import organizations as organizations_endpoints
+from app.api.v1.endpoints import subscriptions as subscriptions_endpoints
+from app.api.v1.endpoints import users as users_endpoints
 from app.api.v1.router import api_router
 from app.core.logging import configure_logging
 from app.db.session import engine
@@ -66,6 +69,13 @@ def create_app() -> FastAPI:
                 "name": "webhooks",
                 "description": "HMAC-signed Auth0 and billing callbacks. No Bearer token.",
             },
+            {
+                "name": "admin",
+                "description": (
+                    "Super Admin management APIs for subscription plans, organizations, "
+                    "and users. All routes require Bearer token with SUPER_ADMIN role."
+                ),
+            },
         ],
     )
     register_exception_handlers(application)
@@ -77,6 +87,21 @@ def create_app() -> FastAPI:
     application.add_middleware(SlowAPIMiddleware)
     application.include_router(api_router, prefix="/api/v1")
     application.include_router(auth_endpoints.router, prefix="/api/auth", tags=["auth"])
+    application.include_router(
+        subscriptions_endpoints.router,
+        prefix="/api/subscriptions",
+        tags=["admin"],
+    )
+    application.include_router(
+        organizations_endpoints.router,
+        prefix="/api/organizations",
+        tags=["admin"],
+    )
+    application.include_router(
+        users_endpoints.router,
+        prefix="/api/users",
+        tags=["admin"],
+    )
     return application
 
 

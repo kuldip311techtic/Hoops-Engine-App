@@ -1,0 +1,52 @@
+"""Super Admin authorization and admin service factories."""
+
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.dependencies.auth import get_current_user
+from app.dependencies.db import get_db
+from app.exceptions.base import ForbiddenError
+from app.models.user import User, UserRole
+from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.subscription_plan_repository import SubscriptionPlanRepository
+from app.repositories.user_repository import UserRepository
+from app.services.organization_service import OrganizationService
+from app.services.subscription_plan_service import SubscriptionPlanService
+from app.services.user_admin_service import UserAdminService
+from app.services.email_service import EmailService
+
+
+async def get_current_super_admin(
+    user: User = Depends(get_current_user),
+) -> User:
+    """Require an authenticated Super Admin principal."""
+    if user.role != UserRole.SUPER_ADMIN:
+        raise ForbiddenError("Access denied", code="FORBIDDEN")
+    return user
+
+
+def get_subscription_plan_service(
+    db: AsyncSession = Depends(get_db),
+) -> SubscriptionPlanService:
+    """Build SubscriptionPlanService with a request-scoped repository."""
+    return SubscriptionPlanService(SubscriptionPlanRepository(db))
+
+
+def get_organization_service(
+    db: AsyncSession = Depends(get_db),
+) -> OrganizationService:
+    """Build OrganizationService with a request-scoped repository and email adapter."""
+    return OrganizationService(
+        OrganizationRepository(db),
+        email_service=EmailService(),
+    )
+
+
+def get_user_admin_service(
+    db: AsyncSession = Depends(get_db),
+) -> UserAdminService:
+    """Build UserAdminService with a request-scoped repository and email adapter."""
+    return UserAdminService(
+        UserRepository(db),
+        email_service=EmailService(),
+    )

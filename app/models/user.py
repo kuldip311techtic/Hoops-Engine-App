@@ -23,6 +23,9 @@ class UserRole(str, enum.Enum):
     SUPER_ADMIN = "SUPER_ADMIN"
     USER = "USER"
     VIEWER = "VIEWER"
+    COACH = "COACH"
+    PLAYER = "PLAYER"
+    ORG_ADMIN = "ORG_ADMIN"
 
 
 class User(Base):
@@ -36,6 +39,8 @@ class User(Base):
         default=uuid.uuid4,
     )
     email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    first_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)
+    last_name: Mapped[str] = mapped_column(String(100), default="", nullable=False)
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
         Enum(UserRole, name="user_role"),
