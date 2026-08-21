@@ -6,7 +6,7 @@ from uuid import UUID
 from loguru import logger
 
 from app.exceptions.base import ConflictError, NotFoundError
-from app.models.subscription_plan import BillingCycle, SubscriptionPlan
+from app.models.subscription_plan import SubscriptionPlan
 from app.repositories.subscription_plan_repository import SubscriptionPlanRepository
 from app.schemas.subscription_plan import (
     SubscriptionPlanResponse,

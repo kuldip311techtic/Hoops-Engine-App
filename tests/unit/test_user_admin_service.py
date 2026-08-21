@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 
-from app.exceptions.base import ConflictError, ForbiddenError, NotFoundError
+from app.exceptions.base import ConflictError, ForbiddenError
 from app.models.user import User, UserRole
 from app.services.user_admin_service import UserAdminService
 from tests.conftest import LIVE_NEW_EMAIL

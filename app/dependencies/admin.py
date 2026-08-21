@@ -10,10 +10,10 @@ from app.models.user import User, UserRole
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.subscription_plan_repository import SubscriptionPlanRepository
 from app.repositories.user_repository import UserRepository
+from app.services.email_service import EmailService
 from app.services.organization_service import OrganizationService
 from app.services.subscription_plan_service import SubscriptionPlanService
 from app.services.user_admin_service import UserAdminService
-from app.services.email_service import EmailService
 
 
 async def get_current_super_admin(

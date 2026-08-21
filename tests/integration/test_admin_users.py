@@ -9,7 +9,6 @@ from httpx import AsyncClient
 
 from tests.conftest import LIVE_NEW_EMAIL, LIVE_NEW_PASSWORD, LIVE_USER_EMAIL
 
-
 # --- JAW-9460 acceptance criteria ---
 
 
