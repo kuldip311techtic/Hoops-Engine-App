@@ -1,13 +1,31 @@
-"""Alembic environment. URL comes from application settings, not alembic.ini."""
+"""Alembic environment. Sync SQLAlchemy only; URL comes from env / settings."""
 
+from __future__ import annotations
+
+import os
+import sys
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
-from app.core.config import get_settings
-from app.db.base import Base
-from app.models import Subscription, User  # noqa: F401
+# Discover the directory that contains alembic.ini and the app package.
+_here = Path(__file__).resolve()
+_package_root = next(
+    (
+        parent
+        for parent in _here.parents
+        if (parent / "alembic.ini").is_file() and (parent / "app").is_dir()
+    ),
+    _here.parents[3],
+)
+if str(_package_root) not in sys.path:
+    sys.path.insert(0, str(_package_root))
+
+from app.core.config import get_settings  # noqa: E402
+from app.db.base import Base  # noqa: E402
+from app.models import Subscription, User  # noqa: E402, F401
 
 config = context.config
 
@@ -18,8 +36,20 @@ target_metadata = Base.metadata
 
 
 def get_sync_url() -> str:
-    """Return a psycopg2 URL for the sync Alembic runner."""
-    return get_settings().database_url.replace("+asyncpg", "+psycopg2")
+    """Return a sync psycopg2 URL. Never use asyncpg inside Alembic."""
+    raw = os.environ.get("DATABASE_URL") or get_settings().database_url
+    url = raw.strip().strip('"').strip("'")
+    replacements = (
+        ("postgresql+asyncpg://", "postgresql+psycopg2://"),
+        ("postgres+asyncpg://", "postgresql+psycopg2://"),
+        ("postgres://", "postgresql+psycopg2://"),
+        ("postgresql://", "postgresql+psycopg2://"),
+    )
+    for old, new in replacements:
+        if url.startswith(old):
+            url = new + url[len(old) :]
+            break
+    return url
 
 
 def run_migrations_offline() -> None:
@@ -29,22 +59,21 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
-    configuration = config.get_section(config.config_ini_section) or {}
-    configuration["sqlalchemy.url"] = get_sync_url()
-    connectable = engine_from_config(
-        configuration,
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    """Run migrations with a sync engine (psycopg2)."""
+    connectable = create_engine(get_sync_url(), poolclass=pool.NullPool)
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+        )
         with context.begin_transaction():
             context.run_migrations()
 
