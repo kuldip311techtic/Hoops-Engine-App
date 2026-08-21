@@ -35,7 +35,7 @@ async def test_validation_error_shape(app) -> None:
     async def _validation_sample(body: SampleBody) -> dict:
         return {"received": body.field_name}
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post("/api/v1/_validation-sample", json={})
     assert response.status_code == 422
@@ -57,7 +57,7 @@ async def test_unhandled_error_does_not_leak_internal_message(app) -> None:
     async def _boom() -> dict:
         raise RuntimeError(internal_marker)
 
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.get("/api/v1/_boom")
     assert response.status_code == 500

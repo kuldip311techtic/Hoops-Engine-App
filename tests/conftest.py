@@ -140,16 +140,27 @@ def password_hashes(_migrated_test_database) -> dict[str, str]:
 
 
 @pytest.fixture(autouse=True)
-def mock_third_party_services():
-    """Block boto3 SES HTTP; do not patch SESClient.send_email itself.
+def mock_third_party_services(request):
+    """Block boto3 SES HTTP for app tests; leave SESClient unit tests unpatched.
 
-    Unit tests in test_ses_client.py exercise send_email() with a stub
-    ``_client``. Patching send_email globally forced those tests to see
-    ``ses-message-id-test`` and skipped EmailNotConfiguredError / EmailDeliveryError.
+    ``test_ses_client.py`` injects a stub ``_client`` and must run the real
+    ``send_email`` / ``_get_boto_client`` path.
     """
+    if request.node.path.name == "test_ses_client.py":
+        yield
+        return
     with patch("app.clients.ses_client.SESClient._get_boto_client") as boto:
         boto.return_value.send_email.return_value = {"MessageId": "ses-message-id-test"}
         yield
+
+
+@pytest.fixture(autouse=True)
+async def _dispose_db_engine():
+    """Drop the process-wide async engine after each test (function-scoped loops)."""
+    yield
+    from app.db.session import dispose_engine
+
+    await dispose_engine()
 
 
 @pytest.fixture
@@ -205,7 +216,7 @@ async def db_session(seed_users):
 @pytest.fixture
 async def client(app, seed_users) -> AsyncIterator[AsyncClient]:
     """HTTPX async client bound to the ASGI app (real DB via Depends)."""
-    transport = ASGITransport(app=app)
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as async_client:
         yield async_client
 
