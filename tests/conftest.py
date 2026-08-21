@@ -31,7 +31,7 @@ _load_dotenv(ROOT / ".env.test")
 _load_dotenv(ROOT / ".env")
 
 _DEFAULT_TEST_URL = (
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/hoopsengine_test"
+    "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine"
 )
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL") or _DEFAULT_TEST_URL
 os.environ["TEST_DATABASE_URL"] = TEST_DATABASE_URL
@@ -141,13 +141,13 @@ def password_hashes(_migrated_test_database) -> dict[str, str]:
 
 @pytest.fixture(autouse=True)
 def mock_third_party_services():
-    """Block SES/boto3 and keep Auth0/Stripe adapters local-only."""
-    with patch(
-        "app.clients.ses_client.SESClient.send_email",
-        return_value="ses-message-id-test",
-    ), patch(
-        "app.clients.ses_client.SESClient._get_boto_client",
-    ) as boto:
+    """Block boto3 SES HTTP; do not patch SESClient.send_email itself.
+
+    Unit tests in test_ses_client.py exercise send_email() with a stub
+    ``_client``. Patching send_email globally forced those tests to see
+    ``ses-message-id-test`` and skipped EmailNotConfiguredError / EmailDeliveryError.
+    """
+    with patch("app.clients.ses_client.SESClient._get_boto_client") as boto:
         boto.return_value.send_email.return_value = {"MessageId": "ses-message-id-test"}
         yield
 

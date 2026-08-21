@@ -1,6 +1,6 @@
 """Super Admin login, refresh, and change-password endpoints."""
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
@@ -213,6 +213,7 @@ def get_auth_service(session: AsyncSession = Depends(get_db)) -> AuthService:
 @limiter.limit(get_settings().login_rate_limit)
 async def login(
     request: Request,
+    response: Response,
     body: LoginRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
@@ -251,6 +252,7 @@ async def login(
 @limiter.limit(get_settings().login_rate_limit)
 async def refresh(
     request: Request,
+    response: Response,
     body: RefreshRequest,
     service: AuthService = Depends(get_auth_service),
 ) -> LoginResponse:
