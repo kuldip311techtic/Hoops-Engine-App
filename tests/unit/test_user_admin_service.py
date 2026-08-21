@@ -1,5 +1,6 @@
 """User admin service unit tests (JAW-9460)."""
 
+import secrets
 from uuid import uuid4
 
 import pytest
@@ -7,8 +8,13 @@ import pytest
 from app.exceptions.base import ConflictError, ForbiddenError, NotFoundError
 from app.models.user import User, UserRole
 from app.services.user_admin_service import UserAdminService
-from tests.conftest import LIVE_NEW_EMAIL, LIVE_NEW_PASSWORD
+from tests.conftest import LIVE_NEW_EMAIL
 from tests.fakes import InMemoryUserRepository
+
+
+def _test_password(*, prefix: str = "Unit") -> str:
+    """Return a unique password that satisfies the app's complexity policy."""
+    return f"{prefix}{secrets.token_hex(8)}!1"
 
 
 @pytest.fixture
@@ -44,7 +50,7 @@ async def test_create_user_success(service: UserAdminService) -> None:
         first_name="John",
         last_name="Doe",
         email="john.doe@example.com",
-        password=LIVE_NEW_PASSWORD,
+        password=_test_password(),
         role="Coach",
     )
     assert result.name == "John Doe"
@@ -58,11 +64,12 @@ async def test_create_user_duplicate_email_raises_conflict(
     service: UserAdminService,
 ) -> None:
     """Duplicate emails raise EMAIL_ALREADY_EXISTS."""
+    password = _test_password()
     await service.create_user(
         first_name="John",
         last_name="Doe",
         email=LIVE_NEW_EMAIL,
-        password=LIVE_NEW_PASSWORD,
+        password=password,
         role="Coach",
     )
     with pytest.raises(ConflictError) as exc:
@@ -70,7 +77,7 @@ async def test_create_user_duplicate_email_raises_conflict(
             first_name="Jane",
             last_name="Doe",
             email=LIVE_NEW_EMAIL,
-            password=LIVE_NEW_PASSWORD,
+            password=_test_password(prefix="Other"),
             role="Player",
         )
     assert exc.value.code == "EMAIL_ALREADY_EXISTS"
@@ -86,13 +93,16 @@ async def test_update_user_bumps_token_version_on_password_change(
         first_name="Pat",
         last_name="Smith",
         email="pat@example.com",
-        password=LIVE_NEW_PASSWORD,
+        password=_test_password(prefix="Initial"),
         role="User",
     )
     user = await users.get_by_id(created.id)
     assert user is not None
     assert user.token_version == 1
-    await service.update_user(created.id, password="NewSecure1!")
+    await service.update_user(
+        created.id,
+        password=_test_password(prefix="Updated"),
+    )
     assert user.token_version == 2
 
 
@@ -105,7 +115,7 @@ async def test_deactivate_user_sets_is_active_false(
         first_name="Rem",
         last_name="Ove",
         email="remove@example.com",
-        password=LIVE_NEW_PASSWORD,
+        password=_test_password(),
         role="Viewer",
     )
     removed = await service.deactivate_user(created.id, actor=_admin())
