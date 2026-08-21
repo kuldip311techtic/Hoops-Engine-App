@@ -5,8 +5,8 @@ from __future__ import annotations
 import os
 from collections.abc import AsyncIterator
 from pathlib import Path
-from urllib.parse import urlparse
 from unittest.mock import patch
+from urllib.parse import urlparse
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -44,8 +44,8 @@ os.environ["ENVIRONMENT"] = "test"
 os.environ.setdefault("DASHBOARD_PATH", "/dashboard")
 os.environ.setdefault("LOGIN_RATE_LIMIT", "1000/minute")
 
-from app.core.config import get_settings  # noqa: E402
-from app.main import create_app  # noqa: E402
+from app.core.config import get_settings
+from app.main import create_app
 
 ADMIN_EMAIL = "admin@test.com"
 ADMIN_PASSWORD = "TestAdmin123!"

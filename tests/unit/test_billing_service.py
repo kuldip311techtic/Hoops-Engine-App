@@ -1,6 +1,6 @@
 """BillingService access-until-period-end rules."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 
 from app.exceptions import ForbiddenError
@@ -13,7 +13,7 @@ def _service() -> BillingService:
 
 def test_cancelled_retains_access_until_period_end() -> None:
     """Cancelled subscription still has access before access_until."""
-    future = datetime.now(timezone.utc) + timedelta(days=10)
+    future = datetime.now(UTC) + timedelta(days=10)
     sub = SimpleNamespace(status="cancelled", access_until=future)
     snapshot = _service().evaluate(sub)
     assert snapshot.has_access is True
@@ -22,7 +22,7 @@ def test_cancelled_retains_access_until_period_end() -> None:
 
 def test_cancelled_denies_access_after_period_end() -> None:
     """Cancelled subscription is expired after access_until."""
-    past = datetime.now(timezone.utc) - timedelta(days=1)
+    past = datetime.now(UTC) - timedelta(days=1)
     sub = SimpleNamespace(status="cancelled", access_until=past)
     snapshot = _service().evaluate(sub)
     assert snapshot.has_access is False

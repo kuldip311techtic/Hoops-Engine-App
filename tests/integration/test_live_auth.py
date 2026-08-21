@@ -1,6 +1,6 @@
 """Live PostgreSQL integration tests for Super Admin login (JAW-9470)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from jose import jwt
@@ -304,7 +304,7 @@ async def test_expired_access_token_rejected(client, db_session) -> None:
     )
     admin = result.scalar_one()
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     token = jwt.encode(
         {
             "sub": str(admin.id),

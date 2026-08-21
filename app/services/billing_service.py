@@ -1,6 +1,6 @@
 """Billing / subscription access rules."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.exceptions import ForbiddenError
 from app.models.subscription import Subscription
@@ -33,7 +33,7 @@ class BillingService:
             )
         access_until = subscription.access_until
         iso = access_until.isoformat() if access_until is not None else None
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if subscription.status == "active":
             return SubscriptionAccessData(status="active", has_access=True, access_until=iso)
         if subscription.status == "cancelled":
@@ -70,10 +70,10 @@ class BillingService:
 
     async def apply_cancellation(self, payload: BillingWebhookRequest) -> SubscriptionAccessData:
         """Record a cancellation that retains access until period end."""
-        cancelled_at = datetime.now(timezone.utc)
+        cancelled_at = datetime.now(UTC)
         access_until = payload.access_until
         if access_until is not None and access_until.tzinfo is None:
-            access_until = access_until.replace(tzinfo=timezone.utc)
+            access_until = access_until.replace(tzinfo=UTC)
         row = await self._repository.upsert_cancelled(
             email=str(payload.email),
             access_until=access_until,

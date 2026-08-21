@@ -3,7 +3,7 @@
 import hashlib
 import hmac
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 
@@ -22,7 +22,7 @@ async def test_cancelled_subscription_retains_access_until_period_end(
     client, db_session, settings
 ) -> None:
     """JAW-9470: cancel keeps has_access True until access_until."""
-    future = datetime.now(timezone.utc) + timedelta(days=10)
+    future = datetime.now(UTC) + timedelta(days=10)
     payload = {
         "type": "customer.subscription.deleted",
         "email": USER_EMAIL,
@@ -54,7 +54,7 @@ async def test_cancelled_subscription_retains_access_until_period_end(
 
 async def test_expired_subscription_denies_access(db_session) -> None:
     """After access_until, cancelled subscriptions are expired."""
-    past = datetime.now(timezone.utc) - timedelta(days=1)
+    past = datetime.now(UTC) - timedelta(days=1)
     repo = SubscriptionRepository(db_session)
     await repo.upsert_cancelled(
         email="expired@test.com",
@@ -136,7 +136,7 @@ async def test_subscription_row_persisted_after_webhook(
     client, db_session, settings
 ) -> None:
     """Billing webhook writes a subscriptions row keyed by email."""
-    future = datetime.now(timezone.utc) + timedelta(days=5)
+    future = datetime.now(UTC) + timedelta(days=5)
     payload = {
         "type": "customer.subscription.deleted",
         "email": "coach@test.com",

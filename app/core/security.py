@@ -4,7 +4,7 @@ python-jose and passlib are imported only in this module so routes never touch
 the vendor libraries directly.
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jose import JWTError, jwt
@@ -36,7 +36,7 @@ def _encode_token(
 ) -> str:
     """Build and sign a JWT with standard registered claims."""
     settings = get_settings()
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload: dict[str, Any] = {
         "sub": subject,
         "iat": int(now.timestamp()),
