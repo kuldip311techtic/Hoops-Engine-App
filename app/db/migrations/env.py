@@ -28,27 +28,40 @@ def get_sync_url() -> str:
     return url
 
 
-def _heal_unknown_database_revision(connection) -> None:
-    """Stamp alembic_version to this repo's head when it names a missing revision.
+def _heal_unknown_database_revision(connectable) -> None:
+    """Stamp alembic_version onto a known revision when it names a missing one.
 
-    Autogenerate loads the current DB version from ``alembic_version``. A leftover
-    version from a previous scaffold (not present under versions/) raises
-    ``Can't locate revision identified by ...``. Aligning to the script head
-    lets revision/upgrade proceed without rewriting local history.
+    Leftover versions from a previous scaffold raise
+    ``Can't locate revision identified by ...``. Stamp to the parent of the
+    current head (or head if it has no parent) so ``upgrade head`` can still
+    apply pending revisions. Uses a dedicated connection so the SELECT/UPDATE
+    cannot leave the migration connection inside an uncommitted transaction
+    that would roll back the upgrade.
     """
     script = ScriptDirectory.from_config(config)
     known = {rev.revision for rev in script.walk_revisions()}
-    current = MigrationContext.configure(connection).get_current_heads()
-    if not current or all(revision_id in known for revision_id in current):
-        return
-    head = script.get_current_head()
-    if not head:
-        return
-    connection.execute(
-        text("UPDATE alembic_version SET version_num = :version"),
-        {"version": head},
-    )
-    connection.commit()
+    with connectable.connect() as connection:
+        current = MigrationContext.configure(connection).get_current_heads()
+        if not current or all(revision_id in known for revision_id in current):
+            connection.rollback()
+            return
+        head = script.get_current_head()
+        if not head:
+            connection.rollback()
+            return
+        head_script = script.get_revision(head)
+        stamp_to = head
+        if head_script is not None and head_script.down_revision:
+            down = head_script.down_revision
+            if isinstance(down, tuple):
+                down = down[0]
+            if down in known:
+                stamp_to = down
+        connection.execute(
+            text("UPDATE alembic_version SET version_num = :version"),
+            {"version": stamp_to},
+        )
+        connection.commit()
 
 
 def run_migrations_offline() -> None:
@@ -75,8 +88,9 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    _heal_unknown_database_revision(connectable)
+
     with connectable.connect() as connection:
-        _heal_unknown_database_revision(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
