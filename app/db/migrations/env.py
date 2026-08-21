@@ -3,7 +3,9 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from alembic.runtime.migration import MigrationContext
+from alembic.script import ScriptDirectory
+from sqlalchemy import engine_from_config, pool, text
 
 from app.core.config import get_settings
 from app.db.base import Base
@@ -24,6 +26,29 @@ def get_sync_url() -> str:
     if url.startswith("postgresql+asyncpg://"):
         return url.replace("postgresql+asyncpg://", "postgresql+psycopg2://", 1)
     return url
+
+
+def _heal_unknown_database_revision(connection) -> None:
+    """Stamp alembic_version to this repo's head when it names a missing revision.
+
+    Autogenerate loads the current DB version from ``alembic_version``. A leftover
+    version from a previous scaffold (not present under versions/) raises
+    ``Can't locate revision identified by ...``. Aligning to the script head
+    lets revision/upgrade proceed without rewriting local history.
+    """
+    script = ScriptDirectory.from_config(config)
+    known = {rev.revision for rev in script.walk_revisions()}
+    current = MigrationContext.configure(connection).get_current_heads()
+    if not current or all(revision_id in known for revision_id in current):
+        return
+    head = script.get_current_head()
+    if not head:
+        return
+    connection.execute(
+        text("UPDATE alembic_version SET version_num = :version"),
+        {"version": head},
+    )
+    connection.commit()
 
 
 def run_migrations_offline() -> None:
@@ -51,6 +76,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        _heal_unknown_database_revision(connection)
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
