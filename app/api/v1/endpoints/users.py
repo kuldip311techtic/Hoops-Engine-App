@@ -1,5 +1,4 @@
-```python
-"""Admin user management routes. Thin: validate DTO, call service, wrap envelope."
+"""Admin user management routes. Thin: validate DTO, call service, wrap envelope."""
 
 from uuid import UUID
 
@@ -40,6 +39,7 @@ _common_responses = {
     422: _errors[422],
     500: _errors[500],
 }
+
 
 @router.get(
     "",
@@ -109,6 +109,7 @@ async def list_users(
         },
     }
 
+
 @router.post(
     "",
     response_model=AdminSuccessResponse,
@@ -159,9 +160,10 @@ async def create_user(
         "data": {"user": user.model_dump(mode="json")},
     }
 
+
 @router.get(
     "/{user_id}",
-    response_model=UserListResponse,
+    response_model=AdminSuccessResponse,
     status_code=status.HTTP_200_OK,
     operation_id="get_user",
     summary="Get user by ID",
@@ -176,7 +178,7 @@ async def create_user(
                         "success": True,
                         "message": "User retrieved",
                         "description": "User retrieved successfully.",
-                        "data": _user_example,
+                        "data": {"user": _user_example},
                     }
                 }
             },
@@ -195,6 +197,103 @@ async def get_user(
         "success": True,
         "message": "User retrieved",
         "description": "User retrieved successfully.",
-        "data": user.model_dump(mode="json"),
+        "data": {"user": user.model_dump(mode="json")},
     }
-```
+
+
+@router.put(
+    "/{user_id}",
+    response_model=AdminSuccessResponse,
+    status_code=status.HTTP_200_OK,
+    operation_id="update_user",
+    summary="Update a user",
+    description=(
+        "Super Admin only. Partially updates a user account. All body fields are "
+        "optional. Duplicate emails return 409 EMAIL_ALREADY_EXISTS. Super Admin "
+        "accounts cannot be modified. Unknown or inactive ids return 404."
+    ),
+    tags=["admin"],
+    responses={
+        200: {
+            "description": "User updated.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "User updated",
+                        "description": "The user was updated successfully.",
+                        "data": {"user": _user_example},
+                    }
+                }
+            },
+        },
+        **_common_responses,
+    },
+)
+async def update_user(
+    user_id: UUID,
+    body: UserUpdateRequest,
+    _admin: User = Depends(get_current_super_admin),
+    service: UserAdminService = Depends(get_user_admin_service),
+) -> dict:
+    """Edit an existing user account."""
+    user = await service.update_user(
+        user_id,
+        first_name=body.first_name,
+        last_name=body.last_name,
+        email=str(body.email) if body.email else None,
+        password=body.password,
+        role=body.role,
+    )
+    return {
+        "success": True,
+        "message": "User updated",
+        "description": "The user was updated successfully.",
+        "data": {"user": user.model_dump(mode="json")},
+    }
+
+
+@router.delete(
+    "/{user_id}",
+    response_model=AdminSuccessResponse,
+    status_code=status.HTTP_200_OK,
+    operation_id="delete_user",
+    summary="Remove a user",
+    description=(
+        "Super Admin only. Soft-removes a user by deactivating the account. The "
+        "acting Super Admin cannot remove themselves. Unknown or already removed "
+        "ids return 404 USER_NOT_FOUND."
+    ),
+    tags=["admin"],
+    responses={
+        200: {
+            "description": "User removed.",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "User removed",
+                        "description": "The user was removed successfully.",
+                        "data": {
+                            "user": {**_user_example, "is_active": False},
+                        },
+                    }
+                }
+            },
+        },
+        **_common_responses,
+    },
+)
+async def delete_user(
+    user_id: UUID,
+    admin: User = Depends(get_current_super_admin),
+    service: UserAdminService = Depends(get_user_admin_service),
+) -> dict:
+    """Remove a user from the active catalog."""
+    user = await service.deactivate_user(user_id, actor=admin)
+    return {
+        "success": True,
+        "message": "User removed",
+        "description": "The user was removed successfully.",
+        "data": {"user": user.model_dump(mode="json")},
+    }

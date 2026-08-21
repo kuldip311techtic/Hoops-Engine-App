@@ -95,6 +95,7 @@ class OrganizationRepository:
         if is_published is not None:
             organization.is_published = is_published
         await self._session.flush()
+        await self._session.refresh(organization)
         return organization
 
     async def deactivate(self, organization: Organization) -> Organization:
@@ -102,4 +103,5 @@ class OrganizationRepository:
         organization.is_active = False
         organization.is_published = False
         await self._session.flush()
+        await self._session.refresh(organization)
         return organization

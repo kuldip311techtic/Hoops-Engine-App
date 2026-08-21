@@ -233,8 +233,6 @@ async def seeded_users(postgres_schema: None) -> AsyncIterator[dict[str, User]]:
         )
         session.add_all([admin, regular, viewer, inactive])
         await session.commit()
-        for row in (admin, regular, viewer, inactive):
-            await session.refresh(row)
         yield {
             "admin": admin,
             "user": regular,

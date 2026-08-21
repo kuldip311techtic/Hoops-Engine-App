@@ -135,11 +135,22 @@ def upgrade() -> None:
         nullable=False,
     )
     op.execute(
+        sa.text("ALTER TABLE subscriptions ALTER COLUMN status DROP DEFAULT")
+    )
+    op.execute(
         sa.text(
             """
             ALTER TABLE subscriptions
             ALTER COLUMN status TYPE subscription_status
             USING upper(status)::subscription_status
+            """
+        )
+    )
+    op.execute(
+        sa.text(
+            """
+            ALTER TABLE subscriptions
+            ALTER COLUMN status SET DEFAULT 'ACTIVE'::subscription_status
             """
         )
     )

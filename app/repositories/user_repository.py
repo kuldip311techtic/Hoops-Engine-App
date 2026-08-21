@@ -91,16 +91,19 @@ class UserRepository:
         if last_name is not None:
             user.last_name = last_name
         await self._session.flush()
+        await self._session.refresh(user)
         return user
 
     async def deactivate(self, user: User) -> User:
         """Soft-remove a user by marking the account inactive."""
         user.is_active = False
         await self._session.flush()
+        await self._session.refresh(user)
         return user
 
     async def increment_token_version(self, user: User) -> int:
         """Bump ``token_version`` so previously issued JWTs are rejected."""
         user.token_version += 1
         await self._session.flush()
+        await self._session.refresh(user)
         return user.token_version

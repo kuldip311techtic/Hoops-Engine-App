@@ -80,10 +80,12 @@ class SubscriptionPlanRepository:
         if is_published is not None:
             plan.is_published = is_published
         await self._session.flush()
+        await self._session.refresh(plan)
         return plan
 
     async def unpublish(self, plan: SubscriptionPlan) -> SubscriptionPlan:
         """Soft-remove a plan by marking it unpublished."""
         plan.is_published = False
         await self._session.flush()
+        await self._session.refresh(plan)
         return plan

@@ -36,6 +36,7 @@ class InMemoryUserRepository:
         last_name: str = "",
     ) -> User:
         """Insert a user."""
+        now = datetime.now(UTC)
         user = User(
             id=uuid4(),
             email=email.lower(),
@@ -45,6 +46,8 @@ class InMemoryUserRepository:
             role=role,
             token_version=1,
             is_active=True,
+            created_at=now,
+            updated_at=now,
         )
         self.users[user.email] = user
         self.by_id[user.id] = user
@@ -88,11 +91,13 @@ class InMemoryUserRepository:
             user.first_name = first_name
         if last_name is not None:
             user.last_name = last_name
+        user.updated_at = datetime.now(UTC)
         return user
 
     async def deactivate(self, user: User) -> User:
         """Soft-remove a user."""
         user.is_active = False
+        user.updated_at = datetime.now(UTC)
         return user
 
     async def increment_token_version(self, user: User) -> int:

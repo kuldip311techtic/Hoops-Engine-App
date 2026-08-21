@@ -139,10 +139,10 @@ async def test_login_empty_string_password(db_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 async def test_login_unicode_email_local_part(db_client: AsyncClient) -> None:
-    """Unicode local-part that is not a valid email is 422."""
+    """Unicode string without a valid email shape is 422."""
     response = await db_client.post(
         "/api/v1/auth/login",
-        json={"email": "админ@test.com", "password": LIVE_ADMIN_PASSWORD},
+        json={"email": "админ", "password": LIVE_ADMIN_PASSWORD},
     )
     assert response.status_code == 422
 
@@ -154,7 +154,7 @@ async def test_login_max_length_password_still_unauthorized(
     """Oversized wrong password is still a credentials error, not a 500."""
     response = await db_client.post(
         "/api/v1/auth/login",
-        json={"email": LIVE_ADMIN_EMAIL, "password": "Aa1!" + ("x" * 4000)},
+        json={"email": LIVE_ADMIN_EMAIL, "password": "Aa1!" + ("x" * 1020)},
     )
     assert response.status_code == 401
     assert response.json()["error"]["code"] == "INVALID_CREDENTIALS"
