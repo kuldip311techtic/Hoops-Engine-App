@@ -2,7 +2,7 @@
 
 import re
 
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.schemas.common import SuccessResponse
 
@@ -25,17 +25,28 @@ def _validate_password_policy(value: str) -> str:
 
 
 class LoginRequest(BaseModel):
-    """Credentials for Super Admin (or user) login."""
+    """Credentials for the Super Admin login screen (email + password only)."""
+
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "admin@example.com",
+                "password": "securepassword",
+            }
+        }
+    )
 
     email: EmailStr = Field(
         ...,
-        description="Account email address",
+        description="Super Admin email address shown on the Admin login screen.",
         examples=["admin@example.com"],
+        max_length=255,
     )
     password: str = Field(
         ...,
         min_length=1,
-        description="Account password",
+        max_length=1024,
+        description="Account password. Never returned in responses.",
         examples=["securepassword"],
     )
 
@@ -43,14 +54,29 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     """Registration payload. Password must meet the product policy."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "email": "player@example.com",
+                "password": "Securepass1!",
+            }
+        }
+    )
+
     email: EmailStr = Field(
         ...,
-        description="Email to register",
+        description="Email to register. Stored lowercase; must be unique.",
         examples=["player@example.com"],
+        max_length=255,
     )
     password: str = Field(
         ...,
-        description="Password meeting complexity rules",
+        min_length=8,
+        max_length=1024,
+        description=(
+            "Password meeting complexity rules: 8+ characters with upper, "
+            "lower, number, and special character."
+        ),
         examples=["Securepass1!"],
     )
 
@@ -64,15 +90,27 @@ class RegisterRequest(BaseModel):
 class ChangePasswordRequest(BaseModel):
     """Authenticated password change. Invalidates other sessions."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "current_password": "Securepass1!",
+                "new_password": "NewSecure1!",
+            }
+        }
+    )
+
     current_password: str = Field(
         ...,
         min_length=1,
-        description="Existing password",
+        max_length=1024,
+        description="Existing password for the authenticated user.",
         examples=["Securepass1!"],
     )
     new_password: str = Field(
         ...,
-        description="Replacement password meeting complexity rules",
+        min_length=8,
+        max_length=1024,
+        description="Replacement password meeting complexity rules.",
         examples=["NewSecure1!"],
     )
 
@@ -86,10 +124,18 @@ class ChangePasswordRequest(BaseModel):
 class RefreshRequest(BaseModel):
     """Refresh-token grant."""
 
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            }
+        }
+    )
+
     refresh_token: str = Field(
         ...,
         min_length=1,
-        description="Refresh JWT issued at login",
+        description="Refresh JWT issued at login. Access tokens are rejected.",
         examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
     )
 
@@ -97,23 +143,40 @@ class RefreshRequest(BaseModel):
 class TokenData(BaseModel):
     """OAuth2 bearer tokens plus SPA redirect hint and login UI fields."""
 
-    access_token: str = Field(..., description="JWT access token")
-    refresh_token: str = Field(..., description="JWT refresh token")
-    token_type: str = Field(default="bearer", description="Always bearer")
-    expires_in: int = Field(..., description="Access token lifetime in seconds")
+    access_token: str = Field(
+        ...,
+        description="JWT access token (type=access). Send as Authorization: Bearer.",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
+    refresh_token: str = Field(
+        ...,
+        description="JWT refresh token (type=refresh) for POST /auth/refresh.",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
+    token_type: str = Field(
+        default="bearer",
+        description="Always bearer.",
+        examples=["bearer"],
+    )
+    expires_in: int = Field(
+        ...,
+        description="Access token lifetime in seconds.",
+        examples=[1800],
+        ge=1,
+    )
     redirect_to: str = Field(
         ...,
-        description="Path the SPA should navigate to after login (not an HTTP 302)",
+        description="Path the SPA should navigate to after login (not an HTTP 302).",
         examples=["/dashboard"],
     )
     email: str = Field(
         ...,
-        description="Authenticated Super Admin email",
+        description="Authenticated account email (also duplicated at envelope top level).",
         examples=["admin@example.com"],
     )
     description: str = Field(
         ...,
-        description="Success copy for the Admin FE toast",
+        description="Success copy for the Admin FE toast.",
         examples=["Welcome back. Redirecting to the dashboard."],
     )
 
@@ -123,12 +186,12 @@ class TokenResponse(SuccessResponse):
 
     email: str = Field(
         ...,
-        description="Authenticated Super Admin email (top-level for the login screen)",
+        description="Authenticated Super Admin email (top-level for the login screen).",
         examples=["admin@example.com"],
     )
     description: str = Field(
         ...,
-        description="Success toast copy",
+        description="Success toast copy for the Admin login screen.",
         examples=["Welcome back. Redirecting to the dashboard."],
     )
     data: TokenData

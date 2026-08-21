@@ -34,14 +34,39 @@ def create_app() -> FastAPI:
         title="Hoops Engine Apps",
         version="0.1.0",
         description=(
-            "Backend API for the Hoops Engine basketball training platform. "
-            "Authentication is OAuth2 password flow issuing JWTs. "
-            "All responses use a success/error envelope with a stable error code."
+            "Backend API for the Hoops Engine basketball training platform "
+            "(Coach, Player, Organization Admin, Super Admin).\n\n"
+            "Authentication is OAuth2 password flow issuing JWTs "
+            "(`POST /api/v1/auth/login`, alias `POST /api/auth/login`). "
+            "Public routes (login, register, refresh, health, webhooks) do not "
+            "require a Bearer token. `POST /api/v1/auth/change-password` requires "
+            "`Authorization: Bearer <access_token>`.\n\n"
+            "All responses use a success/error envelope. Errors include "
+            "`success`, `message`, `description`, and `error.code` "
+            "(for example INVALID_CREDENTIALS, VALIDATION_ERROR, EMAIL_ALREADY_EXISTS). "
+            "Passwords are never echoed. Successful login is HTTP 200 JSON with "
+            "`data.redirect_to`; this API never issues HTTP 302."
         ),
         lifespan=lifespan,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        openapi_tags=[
+            {
+                "name": "auth",
+                "description": (
+                    "Super Admin login, registration, token refresh, and password change."
+                ),
+            },
+            {
+                "name": "health",
+                "description": "Liveness and PostgreSQL readiness probes.",
+            },
+            {
+                "name": "webhooks",
+                "description": "HMAC-signed Auth0 and billing callbacks. No Bearer token.",
+            },
+        ],
     )
     register_exception_handlers(application)
     application.state.limiter = limiter

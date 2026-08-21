@@ -8,29 +8,65 @@ from pydantic import BaseModel, Field
 class ErrorDetail(BaseModel):
     """Machine-readable error payload."""
 
-    code: str = Field(..., description="Stable error code", examples=["VALIDATION_ERROR"])
+    code: str = Field(
+        ...,
+        description="Stable error code the client can switch on.",
+        examples=["VALIDATION_ERROR"],
+    )
     details: Any = Field(
         default=None,
         description="Optional field-level or structured details.",
+        examples=[
+            [
+                {
+                    "loc": ["body", "email"],
+                    "msg": "Field required",
+                    "type": "missing",
+                    "field": "email",
+                    "message": "Field required",
+                }
+            ]
+        ],
     )
 
 
 class SuccessResponse(BaseModel):
     """Standard success envelope."""
 
-    success: bool = Field(default=True, description="Always true for success.")
-    message: str = Field(..., description="UI-safe summary of the result.")
-    data: dict[str, Any] = Field(default_factory=dict, description="Response payload.")
+    success: bool = Field(
+        default=True,
+        description="Always true for success.",
+        examples=[True],
+    )
+    message: str = Field(
+        ...,
+        description="UI-safe summary of the result.",
+        examples=["Login successful"],
+    )
+    data: dict[str, Any] = Field(
+        default_factory=dict,
+        description="Response payload.",
+        examples=[{"status": "ok"}],
+    )
 
 
 class ErrorResponse(BaseModel):
     """Standard error envelope. Includes ``description`` for the Admin login UI."""
 
-    success: bool = Field(default=False, description="Always false for errors.")
-    message: str = Field(..., description="UI-safe error message (inline + toast).")
+    success: bool = Field(
+        default=False,
+        description="Always false for errors.",
+        examples=[False],
+    )
+    message: str = Field(
+        ...,
+        description="UI-safe error message (inline + toast).",
+        examples=["Incorrect email or password"],
+    )
     description: str = Field(
         ...,
         description="Same UI-safe copy as message; Admin FE reads this key.",
+        examples=["Incorrect email or password"],
     )
     error: ErrorDetail
 
@@ -91,9 +127,12 @@ def openapi_error_map() -> dict[int | str, dict[str, Any]]:
                                 "message": "Field required",
                             }
                         ],
-                    )
+                    ),
+                    "schema": ErrorResponse.model_json_schema(),
                 }
             },
         },
+        429: openapi_error(429, "RATE_LIMITED", "Too many requests"),
         500: openapi_error(500, "INTERNAL_ERROR", "Internal server error"),
+        503: openapi_error(503, "SERVICE_UNAVAILABLE", "Service unavailable"),
     }
