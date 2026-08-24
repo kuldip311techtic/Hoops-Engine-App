@@ -1,12 +1,18 @@
-"""Shared pytest fixtures."""
+"""Shared pytest fixtures for in-memory and live PostgreSQL integration tests."""
 
 from __future__ import annotations
 
 import os
 import secrets
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Iterator
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
+from httpx import ASGITransport, AsyncClient
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -53,7 +59,7 @@ _ensure_env("JWT_SECRET_KEY")
 os.environ.setdefault("JWT_SECRET", os.environ["JWT_SECRET_KEY"])
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 
-_fallback_test_url = "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine"
+_fallback_test_url = "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine_test"
 _test_url = _as_asyncpg(
     os.environ.get("TEST_DATABASE_URL")
     or os.environ.get("DATABASE_URL")
@@ -62,23 +68,77 @@ _test_url = _as_asyncpg(
 os.environ["DATABASE_URL"] = _test_url
 os.environ["TEST_DATABASE_URL"] = _test_url
 
-from app.core.config import get_settings
+from alembic import command  # noqa: E402
+from alembic.config import Config  # noqa: E402
+
+from app.core.config import get_settings  # noqa: E402
 
 get_settings.cache_clear()
 
-import pytest
-from httpx import ASGITransport, AsyncClient
+from app.core.security import (  # noqa: E402
+    create_access_token,
+    hash_password,
+)
+from app.dependencies.auth import get_auth_service  # noqa: E402
+from app.dependencies.db import get_db  # noqa: E402
+from app.main import app  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
+from app.repositories.user_repository import UserRepository  # noqa: E402
+from app.services.auth_service import AuthService  # noqa: E402
+from tests.fakes import InMemoryUserRepository  # noqa: E402
 
-from app.core.security import hash_password
-from app.dependencies.auth import get_auth_service
-from app.dependencies.db import get_db
-from app.main import app
-from app.models.user import User, UserRole
-from app.services.auth_service import AuthService
-from tests.fakes import InMemoryUserRepository
-
+# In-memory login fixture credentials (existing fast tests)
 ADMIN_EMAIL = "admin@example.com"
 ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
+
+# Live PostgreSQL seed credentials (five test users)
+ADMIN_LIVE_EMAIL = "admin@test.com"
+ADMIN_LIVE_PASSWORD = "TestAdmin123!"
+USER_LIVE_EMAIL = "user@test.com"
+USER_LIVE_PASSWORD = "TestUser123!"
+VIEWER_LIVE_EMAIL = "viewer@test.com"
+VIEWER_LIVE_PASSWORD = "TestViewer123!"
+INACTIVE_LIVE_EMAIL = "inactive@test.com"
+INACTIVE_LIVE_PASSWORD = "TestInactive123!"
+NEW_USER_EMAIL = "newuser@test.com"
+NEW_USER_PASSWORD = "NewUser123!"
+
+SAMPLE_USERS: tuple[dict[str, object], ...] = (
+    {
+        "key": "admin",
+        "email": ADMIN_LIVE_EMAIL,
+        "password": ADMIN_LIVE_PASSWORD,
+        "role": UserRole.SUPER_ADMIN,
+        "is_active": True,
+    },
+    {
+        "key": "user",
+        "email": USER_LIVE_EMAIL,
+        "password": USER_LIVE_PASSWORD,
+        "role": UserRole.USER,
+        "is_active": True,
+    },
+    {
+        "key": "viewer",
+        "email": VIEWER_LIVE_EMAIL,
+        "password": VIEWER_LIVE_PASSWORD,
+        "role": UserRole.VIEWER,
+        "is_active": True,
+    },
+    {
+        "key": "inactive",
+        "email": INACTIVE_LIVE_EMAIL,
+        "password": INACTIVE_LIVE_PASSWORD,
+        "role": UserRole.SUPER_ADMIN,
+        "is_active": False,
+    },
+    {
+        "key": "new",
+        "email": NEW_USER_EMAIL,
+        "password": NEW_USER_PASSWORD,
+        "skip_insert": True,
+    },
+)
 
 
 async def _fake_db() -> AsyncIterator[MagicMock]:
@@ -88,6 +148,116 @@ async def _fake_db() -> AsyncIterator[MagicMock]:
     session.commit = AsyncMock()
     session.rollback = AsyncMock()
     yield session
+
+
+@pytest.fixture(scope="session")
+def migrated_db() -> Iterator[None]:
+    """Apply Alembic migrations once against TEST_DATABASE_URL."""
+    cfg = Config(str(ROOT / "alembic.ini"))
+    command.upgrade(cfg, "head")
+    yield
+
+
+@pytest.fixture
+async def db_session(migrated_db: None) -> AsyncIterator[AsyncSession]:
+    """Yield a real async SQLAlchemy session bound to the test database."""
+    from app.db.session import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        yield session
+        await session.rollback()
+
+
+@pytest.fixture
+async def clean_users(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Truncate user-related tables before and after each live DB test."""
+    await db_session.execute(
+        text("TRUNCATE TABLE subscriptions, users RESTART IDENTITY CASCADE")
+    )
+    await db_session.commit()
+    yield
+    await db_session.execute(
+        text("TRUNCATE TABLE subscriptions, users RESTART IDENTITY CASCADE")
+    )
+    await db_session.commit()
+
+
+@pytest.fixture
+async def seed_five_users(
+    clean_users: None,
+    db_session: AsyncSession,
+) -> dict[str, User]:
+    """Insert four users into PostgreSQL; fifth (newuser) remains unregistered."""
+    repo = UserRepository(db_session)
+    seeded: dict[str, User] = {}
+    for spec in SAMPLE_USERS:
+        if spec.get("skip_insert"):
+            continue
+        user = await repo.create(
+            email=str(spec["email"]),
+            password_hash=hash_password(str(spec["password"])),
+            role=spec["role"],  # type: ignore[arg-type]
+        )
+        user.is_active = bool(spec["is_active"])
+        await db_session.flush()
+        seeded[str(spec["key"])] = user
+    await db_session.commit()
+    return seeded
+
+
+@pytest.fixture
+async def live_client(migrated_db: None) -> AsyncIterator[AsyncClient]:
+    """HTTP client using real PostgreSQL via dependency injection (no overrides)."""
+    app.dependency_overrides.clear()
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides.clear()
+
+
+@pytest.fixture
+def admin_access_token(seed_five_users: dict[str, User]) -> str:
+    """Bearer access token for the seeded Super Admin user."""
+    admin = seed_five_users["admin"]
+    return create_access_token(admin.id, admin.token_version)
+
+
+@pytest.fixture
+def user_access_token(seed_five_users: dict[str, User]) -> str:
+    """Bearer access token for the seeded regular user."""
+    user = seed_five_users["user"]
+    return create_access_token(user.id, user.token_version)
+
+
+@pytest.fixture
+def viewer_access_token(seed_five_users: dict[str, User]) -> str:
+    """Bearer access token for the seeded viewer user."""
+    viewer = seed_five_users["viewer"]
+    return create_access_token(viewer.id, viewer.token_version)
+
+
+@pytest.fixture
+def expired_access_token(seed_five_users: dict[str, User]) -> str:
+    """Expired JWT for auth rejection tests."""
+    from jose import jwt
+
+    admin = seed_five_users["admin"]
+    settings = get_settings()
+    expired = datetime.now(UTC) - timedelta(minutes=5)
+    claims = {
+        "sub": str(admin.id),
+        "type": "access",
+        "ver": admin.token_version,
+        "exp": expired,
+    }
+    return jwt.encode(
+        claims,
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
+
+
+# --- Existing in-memory fixtures (backward compatible) ---
 
 
 @pytest.fixture
