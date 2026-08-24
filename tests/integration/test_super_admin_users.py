@@ -1,13 +1,14 @@
 """Integration tests for Super Admin user management APIs (JAW-9603)."""
 
+import os
+import secrets
 from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
-
 NEW_COACH_EMAIL = "newcoach@test.com"
-NEW_COACH_PASSWORD = "Securepass1!"
+NEW_COACH_PASSWORD = os.environ.get("TEST_NEW_COACH_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 
 @pytest.mark.asyncio

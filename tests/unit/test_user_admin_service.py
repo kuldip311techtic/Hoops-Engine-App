@@ -1,5 +1,7 @@
 """Unit tests for UserAdminService."""
 
+import os
+import secrets
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -9,6 +11,8 @@ from app.exceptions.base import ConflictError, ForbiddenError, NotFoundError
 from app.models.user import User, UserRole
 from app.services.user_admin_service import UserAdminService
 from tests.fakes import InMemoryUserRepository
+
+TEST_VALID_PASSWORD = os.environ.get("TEST_USER_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 
 @pytest.fixture
@@ -70,7 +74,7 @@ async def test_create_user_success(service: UserAdminService) -> None:
         first_name="Jane",
         last_name="Smith",
         email="jane@test.com",
-        password="Securepass1!",
+        password=TEST_VALID_PASSWORD,
         role="Coach",
     )
     assert result.email == "jane@test.com"
@@ -90,7 +94,7 @@ async def test_create_user_duplicate_email_raises_conflict(
             first_name="Other",
             last_name="User",
             email=coach_user.email,
-            password="Securepass1!",
+            password=TEST_VALID_PASSWORD,
             role="Player",
         )
     assert exc.value.code == "EMAIL_ALREADY_EXISTS"
@@ -106,7 +110,7 @@ async def test_create_user_invalid_role_raises_validation(
             first_name="Bad",
             last_name="Role",
             email="bad@test.com",
-            password="Securepass1!",
+            password=TEST_VALID_PASSWORD,
             role="SUPER_ADMIN",
         )
 
