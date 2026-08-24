@@ -267,7 +267,31 @@ class UserResponse(BaseModel):
     )
 
 
+class UserListData(BaseModel):
+    """Paginated user list payload."""
+
+    items: list[UserResponse] = Field(
+        default_factory=list,
+        description="Users for the current page ordered by email.",
+    )
+    page: int = Field(..., description="1-based page number.", examples=[1])
+    limit: int = Field(..., description="Maximum users per page.", examples=[50])
+    total: int = Field(..., description="Total users matching the filter.", examples=[10])
+
+
+class UserAdminActionData(BaseModel):
+    """Single user returned from create/update/delete actions."""
+
+    user: UserResponse = Field(..., description="Affected user record.")
+
+
+class UserAdminActionResponse(AdminSuccessResponse):
+    """Success envelope for user write operations."""
+
+    data: UserAdminActionData
+
+
 class UserListResponse(AdminSuccessResponse):
     """Paginated user list in the standard success envelope."""
 
-    data: dict[str, object]
+    data: UserListData

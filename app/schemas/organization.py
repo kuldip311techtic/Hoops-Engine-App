@@ -204,7 +204,29 @@ class OrganizationResponse(BaseModel):
     )
 
 
+class OrganizationListData(BaseModel):
+    """Organization list payload."""
+
+    items: list[OrganizationResponse] = Field(
+        default_factory=list,
+        description="Organizations ordered by name.",
+    )
+    total: int = Field(..., description="Total organizations returned.", examples=[5])
+
+
+class OrganizationActionData(BaseModel):
+    """Single organization returned from write operations."""
+
+    organization: OrganizationResponse = Field(..., description="Affected organization record.")
+
+
+class OrganizationActionResponse(AdminSuccessResponse):
+    """Success envelope for organization write operations."""
+
+    data: OrganizationActionData
+
+
 class OrganizationListResponse(AdminSuccessResponse):
     """List of organizations in the standard success envelope."""
 
-    data: dict[str, object]
+    data: OrganizationListData
