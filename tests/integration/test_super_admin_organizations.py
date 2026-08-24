@@ -5,7 +5,6 @@ from uuid import uuid4
 import pytest
 from httpx import AsyncClient
 
-
 NEW_ORG_NAME = "New Organization"
 NEW_ORG_EMAIL = "neworg@example.com"
 

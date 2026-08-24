@@ -174,7 +174,7 @@ async def super_admin_login(
     }
 
 
-from app.api.v1.endpoints import (  # noqa: E402
+from app.api.v1.endpoints import (
     super_admin_organizations,
     super_admin_support_requests,
     super_admin_users,

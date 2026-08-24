@@ -82,8 +82,8 @@ from app.core.security import (
 from app.dependencies.auth import get_auth_service
 from app.dependencies.db import get_db
 from app.main import app
-from app.models.user import User, UserRole
 from app.models.support_request import SupportRequestStatus
+from app.models.user import User, UserRole
 from app.repositories.organization_repository import OrganizationRepository
 from app.repositories.support_request_repository import SupportRequestRepository
 from app.repositories.user_repository import UserRepository
