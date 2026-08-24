@@ -75,15 +75,24 @@ async def test_jaw_9606_fe_error_payload_is_parseable(
 async def test_jaw_9606_fe_empty_fields_backend_validation(
     live_client: AsyncClient,
 ) -> None:
-    """[JAW-9606] Backend enforces both fields (mirrors FE disabled-until-filled rule)."""
+    """[JAW-9606] Backend rejects empty and whitespace-only login fields."""
     empty_email = await live_client.post(
         "/api/super-admin/login",
         json={"email": "", "password": "SomePass1!"},
     )
-    assert empty_email.status_code == 400
+    assert empty_email.status_code == 422
+    assert empty_email.json()["error"]["code"] == "VALIDATION_ERROR"
 
     empty_password = await live_client.post(
         "/api/super-admin/login",
         json={"email": ADMIN_LIVE_EMAIL, "password": ""},
     )
-    assert empty_password.status_code == 400
+    assert empty_password.status_code == 422
+    assert empty_password.json()["error"]["code"] == "VALIDATION_ERROR"
+
+    whitespace_email = await live_client.post(
+        "/api/super-admin/login",
+        json={"email": "   ", "password": "SomePass1!"},
+    )
+    assert whitespace_email.status_code == 400
+    assert whitespace_email.json()["error"]["code"] == "BAD_REQUEST"

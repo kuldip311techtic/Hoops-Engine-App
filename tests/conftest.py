@@ -171,11 +171,13 @@ async def db_session(migrated_db: None) -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 async def clean_users(db_session: AsyncSession) -> AsyncIterator[None]:
     """Truncate user-related tables before and after each live DB test."""
+    await db_session.rollback()
     await db_session.execute(
         text("TRUNCATE TABLE subscriptions, users RESTART IDENTITY CASCADE")
     )
     await db_session.commit()
     yield
+    await db_session.rollback()
     await db_session.execute(
         text("TRUNCATE TABLE subscriptions, users RESTART IDENTITY CASCADE")
     )

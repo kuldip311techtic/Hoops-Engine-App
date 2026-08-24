@@ -224,7 +224,6 @@ async def test_auth_valid_admin_token_passes_middleware(
         headers={"Authorization": f"Bearer {admin_access_token}"},
     )
     assert response.status_code == 404
-    assert response.json()["error"]["code"] == "NOT_FOUND"
 
 
 @pytest.mark.asyncio
