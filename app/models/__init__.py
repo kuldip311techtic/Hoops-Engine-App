@@ -2,7 +2,14 @@
 
 from app.models.organization import Organization
 from app.models.subscription import Subscription
+from app.models.subscription_plan import SubscriptionPlan
 from app.models.support_request import SupportRequest
 from app.models.user import User
 
-__all__ = ["Organization", "Subscription", "SupportRequest", "User"]
+__all__ = [
+    "Organization",
+    "Subscription",
+    "SubscriptionPlan",
+    "SupportRequest",
+    "User",
+]

@@ -6,6 +6,7 @@ import os
 import secrets
 from collections.abc import AsyncIterator, Iterator
 from datetime import UTC, datetime, timedelta
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
@@ -82,9 +83,12 @@ from app.core.security import (
 from app.dependencies.auth import get_auth_service
 from app.dependencies.db import get_db
 from app.main import app
+from app.models.subscription import Subscription, SubscriptionStatus
+from app.models.subscription_plan import BillingCycle
 from app.models.support_request import SupportRequestStatus
 from app.models.user import User, UserRole
 from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.subscription_plan_repository import SubscriptionPlanRepository
 from app.repositories.support_request_repository import SupportRequestRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
@@ -221,6 +225,118 @@ async def seed_organization(
     inactive = await repo.deactivate(inactive)
     await db_session.commit()
     return {"active": active, "inactive": inactive}
+
+
+@pytest.fixture
+async def clean_subscription_plans(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Truncate subscription_plans before and after each live DB test."""
+    await db_session.rollback()
+    await db_session.execute(
+        text("TRUNCATE TABLE subscription_plans RESTART IDENTITY")
+    )
+    await db_session.commit()
+    yield
+    await db_session.rollback()
+    await db_session.execute(
+        text("TRUNCATE TABLE subscription_plans RESTART IDENTITY")
+    )
+    await db_session.commit()
+
+
+@pytest.fixture
+async def seed_subscription_plan(
+    clean_subscription_plans: None,
+    db_session: AsyncSession,
+) -> dict[str, object]:
+    """Insert sample subscription plans for integration tests."""
+    repo = SubscriptionPlanRepository(db_session)
+    published = await repo.create(
+        name="Basic Plan",
+        description="Entry tier plan.",
+        price=Decimal("9.99"),
+        billing_cycle=BillingCycle.MONTHLY,
+        is_published=True,
+    )
+    draft = await repo.create(
+        name="Draft Plan",
+        description="Unpublished draft.",
+        price=Decimal("19.99"),
+        billing_cycle=BillingCycle.YEARLY,
+        is_published=False,
+    )
+    await db_session.commit()
+    return {"published": published, "draft": draft}
+
+
+@pytest.fixture
+async def clean_dashboard_metrics(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Clear dashboard metric tables before and after each live DB test."""
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE subscription_plans RESTART IDENTITY"))
+    await db_session.execute(text("TRUNCATE TABLE subscriptions RESTART IDENTITY"))
+    await db_session.execute(text("TRUNCATE TABLE organizations RESTART IDENTITY"))
+    await db_session.commit()
+    yield
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE subscription_plans RESTART IDENTITY"))
+    await db_session.execute(text("TRUNCATE TABLE subscriptions RESTART IDENTITY"))
+    await db_session.execute(text("TRUNCATE TABLE organizations RESTART IDENTITY"))
+    await db_session.commit()
+
+
+@pytest.fixture
+async def seed_dashboard_metrics(
+    clean_dashboard_metrics: None,
+    seed_five_users: dict[str, User],
+    db_session: AsyncSession,
+) -> dict[str, object]:
+    """Insert organizations, role users, plans, and subscriptions for dashboard tests."""
+    org_repo = OrganizationRepository(db_session)
+    user_repo = UserRepository(db_session)
+    plan_repo = SubscriptionPlanRepository(db_session)
+
+    organization = await org_repo.create(
+        name="Dashboard Org",
+        contact_email="dashboard@example.com",
+        phone_number="5551112222",
+        address="100 Dashboard Ave",
+    )
+    coach = await user_repo.create(
+        email="coach@test.com",
+        password_hash=hash_password("Aa1!CoachPass"),
+        role=UserRole.COACH,
+        first_name="Coach",
+        last_name="User",
+    )
+    player = await user_repo.create(
+        email="player@test.com",
+        password_hash=hash_password("Aa1!PlayerPass"),
+        role=UserRole.PLAYER,
+        first_name="Player",
+        last_name="User",
+    )
+    plan = await plan_repo.create(
+        name="Dashboard Plan",
+        description="Published plan for revenue.",
+        price=Decimal("49.99"),
+        billing_cycle=BillingCycle.MONTHLY,
+        is_published=True,
+    )
+    billing_user = seed_five_users["user"]
+    subscription = Subscription(
+        user_id=billing_user.id,
+        status=SubscriptionStatus.ACTIVE,
+        current_period_end=datetime.now(UTC) + timedelta(days=30),
+    )
+    db_session.add(subscription)
+    await db_session.commit()
+    return {
+        "organization": organization,
+        "coach": coach,
+        "player": player,
+        "plan": plan,
+        "subscription": subscription,
+    }
 
 
 @pytest.fixture
