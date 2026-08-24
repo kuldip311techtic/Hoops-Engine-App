@@ -101,7 +101,10 @@ class SubscriptionPlanCreateRequest(BaseModel):
     @classmethod
     def strip_name(cls, value: str) -> str:
         """Strip surrounding whitespace from the plan name."""
-        return value.strip()
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("name must not be empty")
+        return stripped
 
     @field_validator("billing_cycle")
     @classmethod
@@ -162,7 +165,10 @@ class SubscriptionPlanUpdateRequest(BaseModel):
         """Strip surrounding whitespace when provided."""
         if value is None:
             return None
-        return value.strip()
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("name must not be empty")
+        return stripped
 
     @field_validator("billing_cycle")
     @classmethod

@@ -1,5 +1,6 @@
 """Super Admin subscription plan management routes."""
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, status
@@ -263,11 +264,13 @@ async def create_subscription_plan(
     },
 )
 async def update_subscription_plan(
-    plan_id: UUID = Path(
-        ...,
-        description="UUID of the subscription plan to update.",
-        examples=["550e8400-e29b-41d4-a716-446655440000"],
-    ),
+    plan_id: Annotated[
+        UUID,
+        Path(
+            description="UUID of the subscription plan to update.",
+            examples=["550e8400-e29b-41d4-a716-446655440000"],
+        ),
+    ],
     body: SubscriptionPlanUpdateRequest,
     _admin: User = Depends(get_current_super_admin),
     service: SubscriptionPlanService = Depends(get_subscription_plan_service),
@@ -332,11 +335,13 @@ async def update_subscription_plan(
     },
 )
 async def delete_subscription_plan(
-    plan_id: UUID = Path(
-        ...,
-        description="UUID of the subscription plan to remove (soft-unpublish).",
-        examples=["550e8400-e29b-41d4-a716-446655440000"],
-    ),
+    plan_id: Annotated[
+        UUID,
+        Path(
+            description="UUID of the subscription plan to remove (soft-unpublish).",
+            examples=["550e8400-e29b-41d4-a716-446655440000"],
+        ),
+    ],
     _admin: User = Depends(get_current_super_admin),
     service: SubscriptionPlanService = Depends(get_subscription_plan_service),
 ) -> dict:
