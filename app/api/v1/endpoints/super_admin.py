@@ -168,6 +168,7 @@ async def super_admin_login(
         "success": True,
         "message": "Login successful",
         "email": tokens.email,
+        "token": tokens.access_token,
         "description": tokens.description,
         "data": payload,
     }

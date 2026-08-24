@@ -100,6 +100,11 @@ class LoginResponse(SuccessResponse):
         description="Authenticated Super Admin email (top-level for the login UI).",
         examples=["admin@example.com"],
     )
+    token: str = Field(
+        ...,
+        description="Bearer access token (top-level alias for the login UI).",
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
     description: str = Field(
         ...,
         description="UI-safe success copy duplicated at the top level for the login UI.",

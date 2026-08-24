@@ -43,6 +43,22 @@ class SuccessResponse(BaseModel):
         description="UI-safe summary of the result.",
         examples=["Service is healthy"],
     )
+    email: str | None = Field(
+        default=None,
+        description=(
+            "Authenticated user email when applicable (login). "
+            "Null on non-auth endpoints such as health probes."
+        ),
+        examples=["admin@example.com"],
+    )
+    token: str | None = Field(
+        default=None,
+        description=(
+            "Bearer access token when applicable (login). "
+            "Null on non-auth endpoints such as health probes."
+        ),
+        examples=["eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."],
+    )
     data: dict[str, Any] = Field(
         default_factory=dict,
         description="Response payload.",
@@ -71,9 +87,21 @@ class ErrorResponse(BaseModel):
     error: ErrorDetail
 
 
-def success_body(message: str, data: dict[str, Any] | None = None) -> dict[str, Any]:
+def success_body(
+    message: str,
+    data: dict[str, Any] | None = None,
+    *,
+    email: str | None = None,
+    token: str | None = None,
+) -> dict[str, Any]:
     """Build a success envelope dict."""
-    return {"success": True, "message": message, "data": data or {}}
+    return {
+        "success": True,
+        "message": message,
+        "email": email,
+        "token": token,
+        "data": data or {},
+    }
 
 
 def error_body(message: str, code: str, details: Any = None) -> dict[str, Any]:

@@ -26,6 +26,7 @@ _readiness_errors = {
 @router.get(
     "/health",
     response_model=HealthResponse,
+    response_model_exclude_none=False,
     status_code=status.HTTP_200_OK,
     operation_id="health_liveness",
     summary="Liveness probe",
@@ -46,6 +47,8 @@ _readiness_errors = {
                     "example": {
                         "success": True,
                         "message": "Service is healthy",
+                        "email": None,
+                        "token": None,
                         "data": {"status": "ok"},
                     }
                 }
@@ -57,12 +60,19 @@ _readiness_errors = {
 async def health_check() -> dict:
     """Return liveness status."""
     data = await HealthService().liveness()
-    return {"success": True, "message": "Service is healthy", "data": data}
+    return {
+        "success": True,
+        "message": "Service is healthy",
+        "email": None,
+        "token": None,
+        "data": data,
+    }
 
 
 @router.get(
     "/health/ready",
     response_model=HealthResponse,
+    response_model_exclude_none=False,
     status_code=status.HTTP_200_OK,
     operation_id="health_readiness",
     summary="Readiness probe",
@@ -82,6 +92,8 @@ async def health_check() -> dict:
                     "example": {
                         "success": True,
                         "message": "Service is ready",
+                        "email": None,
+                        "token": None,
                         "data": {"status": "ok"},
                     }
                 }
@@ -93,4 +105,10 @@ async def health_check() -> dict:
 async def health_ready(db: AsyncSession = Depends(get_db)) -> dict:
     """Return readiness after a database ping."""
     data = await HealthService(HealthRepository(db)).readiness()
-    return {"success": True, "message": "Service is ready", "data": data}
+    return {
+        "success": True,
+        "message": "Service is ready",
+        "email": None,
+        "token": None,
+        "data": data,
+    }
