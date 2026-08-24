@@ -32,7 +32,12 @@ subscription_status = postgresql.ENUM(
 
 def upgrade() -> None:
     """Create users and subscriptions tables."""
-    user_role.create(op.get_bind(), checkfirst=True)
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    if "users" in inspector.get_table_names():
+        return
+
+    user_role.create(bind, checkfirst=True)
     subscription_status.create(op.get_bind(), checkfirst=True)
     op.create_table(
         "users",
