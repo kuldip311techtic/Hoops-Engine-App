@@ -172,3 +172,26 @@ async def super_admin_login(
         "description": tokens.description,
         "data": payload,
     }
+
+
+from app.api.v1.endpoints import (
+    super_admin_organizations,
+    super_admin_support_requests,
+    super_admin_users,
+)
+
+router.include_router(
+    super_admin_support_requests.router,
+    prefix="/support-requests",
+    tags=["super-admin"],
+)
+router.include_router(
+    super_admin_users.router,
+    prefix="/users",
+    tags=["super-admin"],
+)
+router.include_router(
+    super_admin_organizations.router,
+    prefix="/organizations",
+    tags=["super-admin"],
+)

@@ -82,7 +82,10 @@ from app.core.security import (
 from app.dependencies.auth import get_auth_service
 from app.dependencies.db import get_db
 from app.main import app
+from app.models.support_request import SupportRequestStatus
 from app.models.user import User, UserRole
+from app.repositories.organization_repository import OrganizationRepository
+from app.repositories.support_request_repository import SupportRequestRepository
 from app.repositories.user_repository import UserRepository
 from app.services.auth_service import AuthService
 from tests.fakes import InMemoryUserRepository
@@ -93,15 +96,15 @@ ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_h
 
 # Live PostgreSQL seed credentials (five test users)
 ADMIN_LIVE_EMAIL = "admin@test.com"
-ADMIN_LIVE_PASSWORD = "TestAdmin123!"
+ADMIN_LIVE_PASSWORD = os.environ.get("TEST_LIVE_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 USER_LIVE_EMAIL = "user@test.com"
-USER_LIVE_PASSWORD = "TestUser123!"
+USER_LIVE_PASSWORD = os.environ.get("TEST_LIVE_USER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 VIEWER_LIVE_EMAIL = "viewer@test.com"
-VIEWER_LIVE_PASSWORD = "TestViewer123!"
+VIEWER_LIVE_PASSWORD = os.environ.get("TEST_LIVE_VIEWER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 INACTIVE_LIVE_EMAIL = "inactive@test.com"
-INACTIVE_LIVE_PASSWORD = "TestInactive123!"
+INACTIVE_LIVE_PASSWORD = os.environ.get("TEST_LIVE_INACTIVE_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 NEW_USER_EMAIL = "newuser@test.com"
-NEW_USER_PASSWORD = "NewUser123!"
+NEW_USER_PASSWORD = os.environ.get("TEST_LIVE_NEW_USER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 SAMPLE_USERS: tuple[dict[str, object], ...] = (
     {
@@ -185,6 +188,54 @@ async def clean_users(db_session: AsyncSession) -> AsyncIterator[None]:
 
 
 @pytest.fixture
+async def clean_organizations(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Truncate organizations before and after each live DB test."""
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE organizations RESTART IDENTITY"))
+    await db_session.commit()
+    yield
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE organizations RESTART IDENTITY"))
+    await db_session.commit()
+
+
+@pytest.fixture
+async def seed_organization(
+    clean_organizations: None,
+    db_session: AsyncSession,
+) -> dict[str, object]:
+    """Insert sample organizations for integration tests."""
+    repo = OrganizationRepository(db_session)
+    active = await repo.create(
+        name="Organization Name",
+        contact_email="contact@example.com",
+        phone_number="1234567890",
+        address="123 Main St",
+    )
+    inactive = await repo.create(
+        name="Removed Org",
+        contact_email="removed@example.com",
+        phone_number="5555555555",
+        address="999 Closed Rd",
+    )
+    inactive = await repo.deactivate(inactive)
+    await db_session.commit()
+    return {"active": active, "inactive": inactive}
+
+
+@pytest.fixture
+async def clean_support_requests(db_session: AsyncSession) -> AsyncIterator[None]:
+    """Truncate support_requests before and after each live DB test."""
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE support_requests RESTART IDENTITY"))
+    await db_session.commit()
+    yield
+    await db_session.rollback()
+    await db_session.execute(text("TRUNCATE TABLE support_requests RESTART IDENTITY"))
+    await db_session.commit()
+
+
+@pytest.fixture
 async def seed_five_users(
     clean_users: None,
     db_session: AsyncSession,
@@ -205,6 +256,31 @@ async def seed_five_users(
         seeded[str(spec["key"])] = user
     await db_session.commit()
     return seeded
+
+
+@pytest.fixture
+async def seed_support_request(
+    clean_support_requests: None,
+    seed_five_users: dict[str, User],
+    db_session: AsyncSession,
+) -> dict[str, object]:
+    """Insert sample support requests for integration tests."""
+    repo = SupportRequestRepository(db_session)
+    submitter = seed_five_users["user"]
+    open_request = await repo.create(
+        subject="Cannot access practice plans",
+        message="I am unable to view practice plans after logging in.",
+        submitter_user_id=submitter.id,
+    )
+    closed_request = await repo.create(
+        subject="Billing question",
+        message="How do I update my subscription?",
+        submitter_user_id=submitter.id,
+        status=SupportRequestStatus.CLOSED,
+    )
+    closed_request.closed_at = datetime.now(UTC)
+    await db_session.commit()
+    return {"open": open_request, "closed": closed_request}
 
 
 @pytest.fixture
@@ -237,6 +313,14 @@ def viewer_access_token(seed_five_users: dict[str, User]) -> str:
     viewer = seed_five_users["viewer"]
     return create_access_token(viewer.id, viewer.token_version)
 
+
+
+
+@pytest.fixture
+def inactive_access_token(seed_five_users: dict[str, User]) -> str:
+    """Bearer access token for the seeded inactive Super Admin user."""
+    inactive = seed_five_users["inactive"]
+    return create_access_token(inactive.id, inactive.token_version)
 
 @pytest.fixture
 def expired_access_token(seed_five_users: dict[str, User]) -> str:
@@ -273,6 +357,8 @@ def admin_user(users: InMemoryUserRepository) -> User:
     """Seed a Super Admin used by in-memory login tests."""
     user = User(
         email=ADMIN_EMAIL,
+        first_name="Admin",
+        last_name="User",
         password_hash=hash_password(ADMIN_PASSWORD),
         role=UserRole.SUPER_ADMIN,
         token_version=1,

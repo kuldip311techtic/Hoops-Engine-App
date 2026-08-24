@@ -66,6 +66,20 @@ class SuccessResponse(BaseModel):
     )
 
 
+class AdminSuccessResponse(SuccessResponse):
+    """Success envelope with toast description for Super Admin screens."""
+
+    description: str = Field(
+        ...,
+        description="UI toast copy; duplicates message semantics for the Admin FE.",
+        examples=["Support request updated successfully."],
+    )
+    error: None = Field(
+        default=None,
+        description="Always null on success responses.",
+    )
+
+
 class ErrorResponse(BaseModel):
     """Standard error envelope."""
 
