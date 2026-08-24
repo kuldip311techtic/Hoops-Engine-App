@@ -206,3 +206,82 @@ async def test_jaw_9602_non_admin_returns_403(
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "FORBIDDEN"
+
+@pytest.mark.asyncio
+async def test_jaw_9602_list_missing_token_returns_401(
+    live_client: AsyncClient,
+    seed_organization: dict,
+) -> None:
+    """[JAW-9602] Missing Bearer token returns 401."""
+    response = await live_client.get("/api/super-admin/organizations")
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9602_create_organization_unicode_address(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_organization: dict,
+) -> None:
+    """[JAW-9602] Edge case: unicode characters in organization address."""
+    response = await live_client.post(
+        "/api/super-admin/organizations",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+        json={
+            "name": "Unicode Org Café",
+            "contact_email": "cafe@example.com",
+            "phone_number": "+1 (555) 123-4567",
+            "address": "123 Rue de la Paix, Montréal QC",
+        },
+    )
+    assert response.status_code == 201
+    org = response.json()["data"]["organization"]
+    assert org["name"] == "Unicode Org Café"
+    assert "Montréal" in org["address"]
+
+
+@pytest.mark.asyncio
+async def test_jaw_9602_create_invalid_data_returns_400_or_422(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_organization: dict,
+) -> None:
+    """[JAW-9602] AC: invalid organization data rejected."""
+    response = await live_client.post(
+        "/api/super-admin/organizations",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+        json={
+            "name": "",
+            "contact_email": "bad",
+            "phone_number": "x",
+            "address": "",
+        },
+    )
+    assert response.status_code in (400, 422)
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] in ("VALIDATION_ERROR", "BAD_REQUEST")
+
+
+@pytest.mark.asyncio
+async def test_jaw_9602_viewer_cannot_create_returns_403(
+    live_client: AsyncClient,
+    viewer_access_token: str,
+    seed_organization: dict,
+) -> None:
+    """[JAW-9602] Viewer role cannot create organizations."""
+    response = await live_client.post(
+        "/api/super-admin/organizations",
+        headers={"Authorization": f"Bearer {viewer_access_token}"},
+        json={
+            "name": "Forbidden Org",
+            "contact_email": "forbidden@example.com",
+            "phone_number": "5551234567",
+            "address": "1 Forbidden Rd",
+        },
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"

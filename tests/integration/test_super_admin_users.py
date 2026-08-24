@@ -206,3 +206,79 @@ async def test_jaw_9603_cannot_remove_own_account(
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "CANNOT_REMOVE_SELF"
+
+@pytest.mark.asyncio
+async def test_jaw_9603_list_missing_token_returns_401(
+    live_client: AsyncClient,
+    seed_five_users: dict,
+) -> None:
+    """[JAW-9603] Missing Bearer token returns 401."""
+    response = await live_client.get("/api/super-admin/users")
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9603_create_user_unicode_names_success(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_five_users: dict,
+) -> None:
+    """[JAW-9603] Edge case: unicode characters in user names."""
+    response = await live_client.post(
+        "/api/super-admin/users",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+        json={
+            "first_name": "José",
+            "last_name": "García",
+            "email": "jose.garcia@test.com",
+            "password": NEW_COACH_PASSWORD,
+            "role": "Player",
+        },
+    )
+    assert response.status_code == 201
+    user = response.json()["data"]["user"]
+    assert user["name"] == "José García"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9603_list_users_pagination_edge(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_five_users: dict,
+) -> None:
+    """[JAW-9603] Edge case: pagination with limit=1."""
+    response = await live_client.get(
+        "/api/super-admin/users?page=1&limit=1",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["data"]["items"]) == 1
+    assert body["data"]["limit"] == 1
+
+
+@pytest.mark.asyncio
+async def test_jaw_9603_create_user_invalid_data_returns_400_or_422(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_five_users: dict,
+) -> None:
+    """[JAW-9603] AC: invalid user data rejected (422 VALIDATION_ERROR in implementation)."""
+    response = await live_client.post(
+        "/api/super-admin/users",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+        json={
+            "first_name": "",
+            "last_name": "User",
+            "email": "invalid-email",
+            "password": "short",
+            "role": "Coach",
+        },
+    )
+    assert response.status_code in (400, 422)
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] in ("VALIDATION_ERROR", "BAD_REQUEST")

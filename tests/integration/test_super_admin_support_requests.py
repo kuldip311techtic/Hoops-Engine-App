@@ -147,3 +147,84 @@ async def test_jaw_9605_respond_to_closed_returns_400(
     body = response.json()
     assert body["success"] is False
     assert body["error"]["code"] == "SUPPORT_REQUEST_CLOSED"
+
+@pytest.mark.asyncio
+async def test_jaw_9605_list_missing_token_returns_401(
+    live_client: AsyncClient,
+    seed_support_request: dict[str, object],
+) -> None:
+    """[JAW-9605] Missing Bearer token returns 401."""
+    response = await live_client.get("/api/super-admin/support-requests")
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9605_list_expired_token_returns_401(
+    live_client: AsyncClient,
+    expired_access_token: str,
+    seed_support_request: dict[str, object],
+) -> None:
+    """[JAW-9605] Expired Bearer token returns 401."""
+    response = await live_client.get(
+        "/api/super-admin/support-requests",
+        headers={"Authorization": f"Bearer {expired_access_token}"},
+    )
+    assert response.status_code == 401
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9605_list_filter_open_status(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_support_request: dict[str, object],
+) -> None:
+    """[JAW-9605] Edge case: filter support requests by OPEN status."""
+    response = await live_client.get(
+        "/api/super-admin/support-requests?status=OPEN",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["success"] is True
+    for item in body["data"]["items"]:
+        assert item["status"] == "OPEN"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9605_respond_empty_response_returns_422(
+    live_client: AsyncClient,
+    admin_access_token: str,
+    seed_support_request: dict[str, object],
+) -> None:
+    """[JAW-9605] Edge case: whitespace-only response returns 422."""
+    open_request = seed_support_request["open"]
+    response = await live_client.post(
+        "/api/super-admin/support-requests",
+        headers={"Authorization": f"Bearer {admin_access_token}"},
+        json={"request_id": str(open_request.id), "response": "   "},
+    )
+    assert response.status_code == 422
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+
+
+@pytest.mark.asyncio
+async def test_jaw_9605_viewer_cannot_list_returns_403(
+    live_client: AsyncClient,
+    viewer_access_token: str,
+    seed_support_request: dict[str, object],
+) -> None:
+    """[JAW-9605] Viewer role cannot access support request APIs."""
+    response = await live_client.get(
+        "/api/super-admin/support-requests",
+        headers={"Authorization": f"Bearer {viewer_access_token}"},
+    )
+    assert response.status_code == 403
+    assert response.json()["error"]["code"] == "FORBIDDEN"

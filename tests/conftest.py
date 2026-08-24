@@ -96,15 +96,15 @@ ADMIN_PASSWORD = os.environ.get("TEST_ADMIN_PASSWORD") or f"Aa1!{secrets.token_h
 
 # Live PostgreSQL seed credentials (five test users)
 ADMIN_LIVE_EMAIL = "admin@test.com"
-ADMIN_LIVE_PASSWORD = "TestAdmin123!"
+ADMIN_LIVE_PASSWORD = os.environ.get("TEST_LIVE_ADMIN_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 USER_LIVE_EMAIL = "user@test.com"
-USER_LIVE_PASSWORD = "TestUser123!"
+USER_LIVE_PASSWORD = os.environ.get("TEST_LIVE_USER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 VIEWER_LIVE_EMAIL = "viewer@test.com"
-VIEWER_LIVE_PASSWORD = "TestViewer123!"
+VIEWER_LIVE_PASSWORD = os.environ.get("TEST_LIVE_VIEWER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 INACTIVE_LIVE_EMAIL = "inactive@test.com"
-INACTIVE_LIVE_PASSWORD = "TestInactive123!"
+INACTIVE_LIVE_PASSWORD = os.environ.get("TEST_LIVE_INACTIVE_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 NEW_USER_EMAIL = "newuser@test.com"
-NEW_USER_PASSWORD = "NewUser123!"
+NEW_USER_PASSWORD = os.environ.get("TEST_LIVE_NEW_USER_PASSWORD") or f"Aa1!{secrets.token_hex(8)}"
 
 SAMPLE_USERS: tuple[dict[str, object], ...] = (
     {
@@ -313,6 +313,14 @@ def viewer_access_token(seed_five_users: dict[str, User]) -> str:
     viewer = seed_five_users["viewer"]
     return create_access_token(viewer.id, viewer.token_version)
 
+
+
+
+@pytest.fixture
+def inactive_access_token(seed_five_users: dict[str, User]) -> str:
+    """Bearer access token for the seeded inactive Super Admin user."""
+    inactive = seed_five_users["inactive"]
+    return create_access_token(inactive.id, inactive.token_version)
 
 @pytest.fixture
 def expired_access_token(seed_five_users: dict[str, User]) -> str:
