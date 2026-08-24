@@ -371,7 +371,7 @@ class InMemoryAnalyticsRepository:
         total_coaches: int = 0,
         total_players: int = 0,
         active_subscriptions: int = 0,
-        revenue_overview: Decimal = Decimal("0"),
+        revenue_overview: Decimal = Decimal(0),
     ) -> None:
         """Initialize dashboard metric counters."""
         self.total_organizations = total_organizations

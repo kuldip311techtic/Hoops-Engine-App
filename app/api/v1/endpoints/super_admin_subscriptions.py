@@ -5,10 +5,12 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Path, Query, status
 
-from app.dependencies.admin import get_current_super_admin, get_subscription_plan_service
+from app.dependencies.admin import (
+    get_current_super_admin,
+    get_subscription_plan_service,
+)
 from app.models.user import User
-from app.schemas.common import openapi_error_map
-from app.schemas.common import ErrorResponse
+from app.schemas.common import ErrorResponse, openapi_error_map
 from app.schemas.subscription_plan import (
     SubscriptionPlanActionResponse,
     SubscriptionPlanCreateRequest,
