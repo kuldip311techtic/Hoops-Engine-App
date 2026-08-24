@@ -97,4 +97,6 @@ class AuthService:
         user = await self._users.get_by_id(user_id)
         if user is None or int(payload.get("ver", 0)) != user.token_version:
             raise UnauthorizedError("Not authenticated")
+        if not user.is_active:
+            raise UnauthorizedError("Not authenticated")
         return user

@@ -335,6 +335,21 @@ async def test_jaw_9604_expired_token_returns_401(
 
 
 @pytest.mark.asyncio
+async def test_jaw_9604_inactive_admin_token_returns_401(
+    live_client: AsyncClient,
+    inactive_access_token: str,
+    seed_subscription_plan: dict,
+) -> None:
+    """Auth: inactive Super Admin bearer token returns 401."""
+    response = await live_client.get(
+        "/api/super-admin/subscriptions",
+        headers={"Authorization": f"Bearer {inactive_access_token}"},
+    )
+    assert response.status_code == 401
+    assert response.json()["error"]["code"] == "UNAUTHORIZED"
+
+
+@pytest.mark.asyncio
 async def test_jaw_9604_non_admin_returns_403(
     live_client: AsyncClient,
     user_access_token: str,
