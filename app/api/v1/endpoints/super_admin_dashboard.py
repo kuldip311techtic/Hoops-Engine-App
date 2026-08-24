@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status
 from app.dependencies.admin import get_analytics_service, get_current_super_admin
 from app.models.user import User
 from app.schemas.analytics import DashboardResponse
-from app.schemas.common import openapi_error_map
+from app.schemas.common import ErrorResponse, openapi_error_map
 from app.services.analytics_service import AnalyticsService
 
 router = APIRouter()
@@ -24,6 +24,24 @@ _metrics_example = {
         {"link": "/users?role=PLAYER", "description": "Manage players"},
         {"link": "/subscriptions", "description": "Manage subscription plans"},
     ],
+}
+
+_dashboard_404 = {
+    "description": "No dashboard data is available yet.",
+    "content": {
+        "application/json": {
+            "example": {
+                "success": False,
+                "message": "No dashboard data is available",
+                "description": "No dashboard data is available",
+                "error": {
+                    "code": "DASHBOARD_DATA_NOT_AVAILABLE",
+                    "details": None,
+                },
+            },
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
 }
 
 _common_responses = {
@@ -55,6 +73,7 @@ _common_responses = {
     ),
     tags=["super-admin"],
     responses={
+        **_common_responses,
         200: {
             "description": "Dashboard analytics retrieved.",
             "content": {
@@ -71,23 +90,7 @@ _common_responses = {
                 }
             },
         },
-        404: {
-            "description": "No dashboard data is available yet.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": False,
-                        "message": "No dashboard data is available",
-                        "description": "No dashboard data is available",
-                        "error": {
-                            "code": "DASHBOARD_DATA_NOT_AVAILABLE",
-                            "details": None,
-                        },
-                    }
-                }
-            },
-        },
-        **_common_responses,
+        404: _dashboard_404,
     },
 )
 async def get_dashboard_metrics(

@@ -2,12 +2,14 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Path, Query, status
 
 from app.dependencies.admin import get_current_super_admin, get_subscription_plan_service
 from app.models.user import User
-from app.schemas.common import AdminSuccessResponse, openapi_error_map
+from app.schemas.common import openapi_error_map
+from app.schemas.common import ErrorResponse
 from app.schemas.subscription_plan import (
+    SubscriptionPlanActionResponse,
     SubscriptionPlanCreateRequest,
     SubscriptionPlanListResponse,
     SubscriptionPlanUpdateRequest,
@@ -28,6 +30,68 @@ _plan_example = {
     "is_published": True,
     "created_at": "2026-08-24T12:00:00+00:00",
     "updated_at": "2026-08-24T12:00:00+00:00",
+}
+
+_subscription_404 = {
+    "description": "Subscription plan not found.",
+    "content": {
+        "application/json": {
+            "example": {
+                "success": False,
+                "message": "Subscription plan not found",
+                "description": "Subscription plan not found",
+                "error": {
+                    "code": "SUBSCRIPTION_PLAN_NOT_FOUND",
+                    "details": None,
+                },
+            },
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
+}
+
+_subscription_409 = {
+    "description": "Subscription plan name already exists.",
+    "content": {
+        "application/json": {
+            "example": {
+                "success": False,
+                "message": "Subscription plan already exists",
+                "description": "Subscription plan already exists",
+                "error": {
+                    "code": "SUBSCRIPTION_PLAN_ALREADY_EXISTS",
+                    "details": None,
+                },
+            },
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
+}
+
+_subscription_422 = {
+    "description": "Invalid subscription plan field values.",
+    "content": {
+        "application/json": {
+            "example": {
+                "success": False,
+                "message": "Request validation failed",
+                "description": "Request validation failed",
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "details": [
+                        {
+                            "field": "billing_cycle",
+                            "message": "billing_cycle must be monthly or yearly",
+                            "msg": "billing_cycle must be monthly or yearly",
+                            "type": "value_error",
+                            "loc": ["body", "billing_cycle"],
+                        }
+                    ],
+                },
+            },
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
 }
 
 _common_responses = {
@@ -82,6 +146,7 @@ async def list_subscription_plans(
     published_only: bool = Query(
         default=False,
         description="When true, return only published plans.",
+        examples=[False],
     ),
     _admin: User = Depends(get_current_super_admin),
     service: SubscriptionPlanService = Depends(get_subscription_plan_service),
@@ -104,7 +169,7 @@ async def list_subscription_plans(
 
 @router.post(
     "",
-    response_model=AdminSuccessResponse,
+    response_model=SubscriptionPlanActionResponse,
     status_code=status.HTTP_201_CREATED,
     operation_id="create_subscription_plan",
     summary="Create a subscription plan",
@@ -133,6 +198,8 @@ async def list_subscription_plans(
             },
         },
         **_common_responses,
+        409: _subscription_409,
+        422: _subscription_422,
     },
 )
 async def create_subscription_plan(
@@ -161,7 +228,7 @@ async def create_subscription_plan(
 
 @router.put(
     "/{plan_id}",
-    response_model=AdminSuccessResponse,
+    response_model=SubscriptionPlanActionResponse,
     status_code=status.HTTP_200_OK,
     operation_id="update_subscription_plan",
     summary="Update a subscription plan",
@@ -190,10 +257,17 @@ async def create_subscription_plan(
             },
         },
         **_common_responses,
+        404: _subscription_404,
+        409: _subscription_409,
+        422: _subscription_422,
     },
 )
 async def update_subscription_plan(
-    plan_id: UUID,
+    plan_id: UUID = Path(
+        ...,
+        description="UUID of the subscription plan to update.",
+        examples=["550e8400-e29b-41d4-a716-446655440000"],
+    ),
     body: SubscriptionPlanUpdateRequest,
     _admin: User = Depends(get_current_super_admin),
     service: SubscriptionPlanService = Depends(get_subscription_plan_service),
@@ -220,7 +294,7 @@ async def update_subscription_plan(
 
 @router.delete(
     "/{plan_id}",
-    response_model=AdminSuccessResponse,
+    response_model=SubscriptionPlanActionResponse,
     status_code=status.HTTP_200_OK,
     operation_id="delete_subscription_plan",
     summary="Remove a subscription plan",
@@ -254,10 +328,15 @@ async def update_subscription_plan(
             },
         },
         **_common_responses,
+        404: _subscription_404,
     },
 )
 async def delete_subscription_plan(
-    plan_id: UUID,
+    plan_id: UUID = Path(
+        ...,
+        description="UUID of the subscription plan to remove (soft-unpublish).",
+        examples=["550e8400-e29b-41d4-a716-446655440000"],
+    ),
     _admin: User = Depends(get_current_super_admin),
     service: SubscriptionPlanService = Depends(get_subscription_plan_service),
 ) -> dict:

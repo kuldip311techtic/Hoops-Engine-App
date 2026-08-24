@@ -84,8 +84,9 @@ class SubscriptionPlanCreateRequest(BaseModel):
     )
     billing_cycle: str = Field(
         ...,
-        description="Billing interval: monthly or yearly.",
+        description="Billing interval: monthly or yearly (aliases: annual, month, year).",
         examples=["monthly"],
+        json_schema_extra={"enum": ["monthly", "yearly", "annual", "month", "year"]},
     )
     is_published: bool = Field(
         default=False,
@@ -145,8 +146,9 @@ class SubscriptionPlanUpdateRequest(BaseModel):
     )
     billing_cycle: str | None = Field(
         default=None,
-        description="Updated billing interval: monthly or yearly.",
+        description="Updated billing interval: monthly or yearly (aliases: annual, month, year).",
         examples=["yearly"],
+        json_schema_extra={"enum": ["monthly", "yearly", "annual", "month", "year"]},
     )
     is_published: bool | None = Field(
         default=None,
