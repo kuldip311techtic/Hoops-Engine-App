@@ -60,13 +60,13 @@ async def test_jaw_9577_validation_error_envelope_shape(
     assert any("field" in item and "message" in item for item in details)
 
 
-from tests.conftest import ADMIN_LIVE_EMAIL  # noqa: E402
+from tests.conftest import ADMIN_LIVE_EMAIL
 
 
 def test_jaw_9577_fastapi_uvicorn_installed() -> None:
     """[JAW-9577] FastAPI and Uvicorn are installed dependencies."""
-    import fastapi  # noqa: F401
-    import uvicorn  # noqa: F401
+    import fastapi
+    import uvicorn
 
     assert fastapi.__version__
     assert uvicorn.__version__
@@ -76,7 +76,7 @@ def test_jaw_9577_postgres_driver_and_alembic_installed() -> None:
     """[JAW-9577] asyncpg, SQLAlchemy, and Alembic are installed."""
     import alembic  # noqa: F401
     import asyncpg  # noqa: F401
-    import sqlalchemy  # noqa: F401
+    import sqlalchemy
 
     assert sqlalchemy.__version__
 

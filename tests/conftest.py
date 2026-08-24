@@ -59,7 +59,7 @@ _ensure_env("JWT_SECRET_KEY")
 os.environ.setdefault("JWT_SECRET", os.environ["JWT_SECRET_KEY"])
 os.environ.setdefault("CORS_ORIGINS", "http://localhost:3000,http://localhost:5173")
 
-_fallback_test_url = "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine_test"
+_fallback_test_url = "postgresql+asyncpg://postgres:1234@localhost:5432/hoopsengine"
 _test_url = _as_asyncpg(
     os.environ.get("TEST_DATABASE_URL")
     or os.environ.get("DATABASE_URL")
@@ -68,24 +68,24 @@ _test_url = _as_asyncpg(
 os.environ["DATABASE_URL"] = _test_url
 os.environ["TEST_DATABASE_URL"] = _test_url
 
-from alembic import command  # noqa: E402
-from alembic.config import Config  # noqa: E402
+from alembic import command
+from alembic.config import Config
 
-from app.core.config import get_settings  # noqa: E402
+from app.core.config import get_settings
 
 get_settings.cache_clear()
 
-from app.core.security import (  # noqa: E402
+from app.core.security import (
     create_access_token,
     hash_password,
 )
-from app.dependencies.auth import get_auth_service  # noqa: E402
-from app.dependencies.db import get_db  # noqa: E402
-from app.main import app  # noqa: E402
-from app.models.user import User, UserRole  # noqa: E402
-from app.repositories.user_repository import UserRepository  # noqa: E402
-from app.services.auth_service import AuthService  # noqa: E402
-from tests.fakes import InMemoryUserRepository  # noqa: E402
+from app.dependencies.auth import get_auth_service
+from app.dependencies.db import get_db
+from app.main import app
+from app.models.user import User, UserRole
+from app.repositories.user_repository import UserRepository
+from app.services.auth_service import AuthService
+from tests.fakes import InMemoryUserRepository
 
 # In-memory login fixture credentials (existing fast tests)
 ADMIN_EMAIL = "admin@example.com"
