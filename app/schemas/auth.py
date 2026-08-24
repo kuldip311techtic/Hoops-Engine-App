@@ -1,8 +1,27 @@
 """Authentication request and response schemas."""
 
+import re
+
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.schemas.common import SuccessResponse
+
+_PASSWORD_SPECIAL = re.compile(r"[^\w\s]")
+
+
+def validate_password_policy(value: str) -> str:
+    """Enforce the product password policy (8+, upper, lower, digit, special)."""
+    if len(value) < 8:
+        raise ValueError("Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", value):
+        raise ValueError("Password must include an uppercase letter")
+    if not re.search(r"[a-z]", value):
+        raise ValueError("Password must include a lowercase letter")
+    if not re.search(r"[0-9]", value):
+        raise ValueError("Password must include a number")
+    if not _PASSWORD_SPECIAL.search(value):
+        raise ValueError("Password must include a special character")
+    return value
 
 
 class LoginRequest(BaseModel):

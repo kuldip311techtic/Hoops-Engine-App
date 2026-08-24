@@ -54,7 +54,10 @@ def create_app() -> FastAPI:
             },
             {
                 "name": "super-admin",
-                "description": "Super Admin authentication for the dashboard login screen.",
+                "description": (
+                    "Super Admin authentication and dashboard management APIs "
+                    "(login, support requests, users, organizations)."
+                ),
             },
         ],
     )
