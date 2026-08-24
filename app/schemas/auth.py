@@ -21,12 +21,17 @@ class LoginRequest(BaseModel):
         ...,
         description="Super Admin email address shown on the Admin login screen.",
         examples=["admin@example.com"],
+        min_length=1,
         max_length=255,
     )
     password: str = Field(
         ...,
+        min_length=1,
         max_length=1024,
-        description="Account password. Never returned in responses.",
+        description=(
+            "Account password. Never returned in responses. "
+            "Whitespace-only values are rejected with 400 BAD_REQUEST after strip."
+        ),
         examples=["password123"],
     )
 

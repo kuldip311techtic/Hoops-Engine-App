@@ -8,13 +8,76 @@ from app.dependencies.auth import get_auth_service
 from app.exceptions.base import AppError
 from app.middleware.rate_limiter import get_limiter
 from app.schemas.auth import LoginRequest, LoginResponse
-from app.schemas.common import openapi_error_map
+from app.schemas.common import ErrorResponse, error_body, openapi_error_map
 from app.services.auth_service import AuthService
 
 router = APIRouter()
 limiter = get_limiter()
 _errors = openapi_error_map()
 _public = {"security": []}
+
+_login_400 = {
+    "description": "Empty email or password after trimming whitespace.",
+    "content": {
+        "application/json": {
+            "example": error_body(
+                "Email and password are required",
+                "BAD_REQUEST",
+                None,
+            ),
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
+}
+
+_login_401 = {
+    "description": "Incorrect email or password (includes unknown email, wrong password, inactive account, or non-admin role).",
+    "content": {
+        "application/json": {
+            "example": error_body(
+                "Incorrect email or password",
+                "INVALID_CREDENTIALS",
+                None,
+            ),
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
+}
+
+_login_422 = {
+    "description": "Pydantic validation failed (missing JSON fields) or invalid email format.",
+    "content": {
+        "application/json": {
+            "examples": {
+                "missing_password": {
+                    "summary": "Missing password field",
+                    "value": error_body(
+                        "Request validation failed",
+                        "VALIDATION_ERROR",
+                        [
+                            {
+                                "field": "password",
+                                "message": "Field required",
+                                "msg": "Field required",
+                                "type": "missing",
+                                "loc": ["body", "password"],
+                            }
+                        ],
+                    ),
+                },
+                "invalid_email": {
+                    "summary": "Malformed email address",
+                    "value": error_body(
+                        "Invalid email address",
+                        "VALIDATION_ERROR",
+                        None,
+                    ),
+                },
+            },
+            "schema": ErrorResponse.model_json_schema(),
+        }
+    },
+}
 
 
 @router.post(
@@ -30,9 +93,11 @@ _public = {"security": []}
         "`email`, `message`, and `description` for the UI. The SPA must store "
         "the token and navigate to `data.redirect_to` (typically `/dashboard`). "
         "This endpoint never issues HTTP 302 and never echoes `password`. "
-        "Empty email or password returns 400 BAD_REQUEST. Wrong credentials "
-        "return 401 INVALID_CREDENTIALS with a generic message. Malformed "
-        "requests return 422 VALIDATION_ERROR with field details."
+        "Whitespace-only email or password returns 400 BAD_REQUEST. Wrong "
+        "credentials return 401 INVALID_CREDENTIALS with a generic message. "
+        "Missing JSON fields return 422 with field details under "
+        "`error.details`. Malformed email returns 422 VALIDATION_ERROR without "
+        "field details. Rate limited per `LOGIN_RATE_LIMIT`."
     ),
     tags=["super-admin"],
     openapi_extra=_public,
@@ -60,24 +125,12 @@ _public = {"security": []}
                 }
             },
         },
-        400: _errors[400],
-        401: {
-            "description": "Incorrect email or password.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": False,
-                        "message": "Incorrect email or password",
-                        "description": "Incorrect email or password",
-                        "error": {"code": "INVALID_CREDENTIALS", "details": None},
-                    }
-                }
-            },
-        },
+        400: _login_400,
+        401: _login_401,
         403: _errors[403],
         404: _errors[404],
         409: _errors[409],
-        422: _errors[422],
+        422: _login_422,
         429: _errors[429],
         500: _errors[500],
     },

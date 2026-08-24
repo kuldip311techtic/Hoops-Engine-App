@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.openapi.utils import get_openapi
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from starlette.responses import JSONResponse
@@ -38,7 +39,9 @@ def create_app() -> FastAPI:
             "All responses use a success/error envelope. Errors include "
             "`success`, `message`, `description`, and `error.code` "
             "(for example VALIDATION_ERROR, UNAUTHORIZED, INTERNAL_ERROR). "
-            "Field-level validation details appear under `error.details`."
+            "Field-level validation details appear under `error.details`.\n\n"
+            "Public routes (health, Super Admin login) require no Authorization "
+            "header. Protected routes expect `Authorization: Bearer <access_token>`."
         ),
         lifespan=lifespan,
         docs_url="/docs",
@@ -68,6 +71,32 @@ def create_app() -> FastAPI:
         prefix="/api/super-admin",
         tags=["super-admin"],
     )
+
+    def custom_openapi() -> dict:
+        """Attach Bearer JWT security scheme for protected endpoints."""
+        if application.openapi_schema:
+            return application.openapi_schema
+        schema = get_openapi(
+            title=application.title,
+            version=application.version,
+            description=application.description,
+            routes=application.routes,
+            tags=application.openapi_tags,
+        )
+        schema.setdefault("components", {}).setdefault("securitySchemes", {})
+        schema["components"]["securitySchemes"]["BearerAuth"] = {
+            "type": "http",
+            "scheme": "bearer",
+            "bearerFormat": "JWT",
+            "description": (
+                "JWT access token from POST /api/super-admin/login. "
+                "Public routes declare security: [] and do not require this header."
+            ),
+        }
+        application.openapi_schema = schema
+        return schema
+
+    application.openapi = custom_openapi  # type: ignore[method-assign]
     return application
 
 

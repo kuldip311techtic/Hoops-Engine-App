@@ -19,11 +19,11 @@ class ErrorDetail(BaseModel):
         examples=[
             [
                 {
-                    "field": "username",
-                    "message": "Username is required",
-                    "msg": "Username is required",
+                    "field": "password",
+                    "message": "Field required",
+                    "msg": "Field required",
                     "type": "missing",
-                    "loc": ["body", "username"],
+                    "loc": ["body", "password"],
                 }
             ]
         ],
@@ -116,11 +116,11 @@ def openapi_error_map() -> dict[int | str, dict[str, Any]]:
                         "VALIDATION_ERROR",
                         [
                             {
-                                "field": "username",
-                                "message": "Username is required",
-                                "msg": "Username is required",
+                                "field": "password",
+                                "message": "Field required",
+                                "msg": "Field required",
                                 "type": "missing",
-                                "loc": ["body", "username"],
+                                "loc": ["body", "password"],
                             }
                         ],
                     ),

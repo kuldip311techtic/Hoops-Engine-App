@@ -13,6 +13,15 @@ router = APIRouter()
 _errors = openapi_error_map()
 _public = {"security": []}
 
+_health_errors = {
+    500: _errors[500],
+}
+
+_readiness_errors = {
+    500: _errors[500],
+    503: _errors[503],
+}
+
 
 @router.get(
     "/health",
@@ -24,7 +33,8 @@ _public = {"security": []}
         "Public liveness probe for the Hoops Engine API. Returns process "
         "liveness without querying PostgreSQL. The payload uses the standard "
         "success envelope with `data.status` set to `ok` when the process is "
-        "running. No Authorization header is required."
+        "running. No Authorization header is required. Returns 500 only on "
+        "unexpected server failure."
     ),
     tags=["health"],
     openapi_extra=_public,
@@ -41,13 +51,7 @@ _public = {"security": []}
                 }
             },
         },
-        400: _errors[400],
-        401: _errors[401],
-        403: _errors[403],
-        404: _errors[404],
-        409: _errors[409],
-        422: _errors[422],
-        500: _errors[500],
+        **_health_errors,
     },
 )
 async def health_check() -> dict:
@@ -83,26 +87,7 @@ async def health_check() -> dict:
                 }
             },
         },
-        400: _errors[400],
-        401: _errors[401],
-        403: _errors[403],
-        404: _errors[404],
-        409: _errors[409],
-        422: _errors[422],
-        500: _errors[500],
-        503: {
-            "description": "Database unavailable.",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "success": False,
-                        "message": "Database unavailable",
-                        "description": "Database unavailable",
-                        "error": {"code": "SERVICE_UNAVAILABLE", "details": None},
-                    }
-                }
-            },
-        },
+        **_readiness_errors,
     },
 )
 async def health_ready(db: AsyncSession = Depends(get_db)) -> dict:
