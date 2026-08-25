@@ -1,9 +1,11 @@
 """In-memory repositories for fast unit and HTTP tests."""
 
 from datetime import UTC, datetime
+from decimal import Decimal
 from uuid import UUID, uuid4
 
 from app.models.organization import Organization
+from app.models.subscription_plan import BillingCycle, SubscriptionPlan
 from app.models.support_request import SupportRequest, SupportRequestStatus
 from app.models.user import User, UserRole
 
@@ -271,3 +273,129 @@ class InMemoryOrganizationRepository:
         organization.is_published = False
         organization.updated_at = datetime.now(UTC)
         return organization
+
+
+class InMemorySubscriptionPlanRepository:
+    """Dict-backed subscription plan store for tests."""
+
+    def __init__(self) -> None:
+        """Initialize empty plan stores."""
+        self._by_id: dict[UUID, SubscriptionPlan] = {}
+        self._by_name: dict[str, SubscriptionPlan] = {}
+
+    async def list_all(
+        self,
+        *,
+        published_only: bool = False,
+    ) -> list[SubscriptionPlan]:
+        """Return plans sorted by name with optional published filter."""
+        rows = list(self._by_id.values())
+        if published_only:
+            rows = [row for row in rows if row.is_published]
+        rows.sort(key=lambda row: row.name)
+        return rows
+
+    async def get_by_id(self, plan_id: UUID) -> SubscriptionPlan | None:
+        """Return the plan with this id, or None."""
+        return self._by_id.get(plan_id)
+
+    async def get_by_name(self, name: str) -> SubscriptionPlan | None:
+        """Return the plan with this name, or None."""
+        return self._by_name.get(name)
+
+    async def create(
+        self,
+        *,
+        name: str,
+        price,
+        billing_cycle: BillingCycle,
+        description: str | None = None,
+        is_published: bool = False,
+    ) -> SubscriptionPlan:
+        """Insert a plan in memory."""
+        now = datetime.now(UTC)
+        plan = SubscriptionPlan(
+            id=uuid4(),
+            name=name,
+            description=description,
+            price=Decimal(str(price)),
+            billing_cycle=billing_cycle,
+            is_published=is_published,
+            created_at=now,
+            updated_at=now,
+        )
+        self._by_id[plan.id] = plan
+        self._by_name[plan.name] = plan
+        return plan
+
+    async def update(
+        self,
+        plan: SubscriptionPlan,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        price=None,
+        billing_cycle: BillingCycle | None = None,
+        is_published: bool | None = None,
+    ) -> SubscriptionPlan:
+        """Apply partial updates in memory."""
+        if name is not None and name != plan.name:
+            self._by_name.pop(plan.name, None)
+            plan.name = name
+            self._by_name[name] = plan
+        if description is not None:
+            plan.description = description
+        if price is not None:
+            plan.price = Decimal(str(price))
+        if billing_cycle is not None:
+            plan.billing_cycle = billing_cycle
+        if is_published is not None:
+            plan.is_published = is_published
+        plan.updated_at = datetime.now(UTC)
+        return plan
+
+    async def unpublish(self, plan: SubscriptionPlan) -> SubscriptionPlan:
+        """Soft-remove a plan in memory."""
+        plan.is_published = False
+        plan.updated_at = datetime.now(UTC)
+        return plan
+
+
+class InMemoryAnalyticsRepository:
+    """Configurable analytics counts for unit tests."""
+
+    def __init__(
+        self,
+        *,
+        total_organizations: int = 0,
+        total_coaches: int = 0,
+        total_players: int = 0,
+        active_subscriptions: int = 0,
+        revenue_overview: Decimal = Decimal(0),
+    ) -> None:
+        """Initialize dashboard metric counters."""
+        self.total_organizations = total_organizations
+        self.total_coaches = total_coaches
+        self.total_players = total_players
+        self.active_subscriptions = active_subscriptions
+        self.revenue_overview = revenue_overview
+
+    async def count_active_organizations(self) -> int:
+        """Return configured organization count."""
+        return self.total_organizations
+
+    async def count_users_by_role(self, role: UserRole) -> int:
+        """Return configured role count."""
+        if role == UserRole.COACH:
+            return self.total_coaches
+        if role == UserRole.PLAYER:
+            return self.total_players
+        return 0
+
+    async def count_active_subscriptions(self) -> int:
+        """Return configured active subscription count."""
+        return self.active_subscriptions
+
+    async def sum_published_plan_prices(self) -> Decimal:
+        """Return configured revenue sum."""
+        return self.revenue_overview

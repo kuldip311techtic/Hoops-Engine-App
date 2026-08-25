@@ -110,3 +110,25 @@ async def test_login_inactive_user_raises_unauthorized(
             require_super_admin=True,
         )
     assert exc_info.value.code == "INVALID_CREDENTIALS"
+
+
+@pytest.mark.asyncio
+async def test_user_from_access_token_inactive_raises_unauthorized(
+    service: AuthService,
+    users: InMemoryUserRepository,
+) -> None:
+    """Inactive accounts cannot use bearer tokens on protected routes."""
+    from app.core.security import create_access_token
+
+    user = users.add(
+        User(
+            email="admin@example.com",
+            password_hash=hash_password("Securepass1!"),
+            role=UserRole.SUPER_ADMIN,
+            is_active=False,
+        )
+    )
+    token = create_access_token(user.id, user.token_version)
+    with pytest.raises(UnauthorizedError) as exc_info:
+        await service.user_from_access_token(token)
+    assert exc_info.value.code == "UNAUTHORIZED"

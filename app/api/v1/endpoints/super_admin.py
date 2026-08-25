@@ -175,7 +175,9 @@ async def super_admin_login(
 
 
 from app.api.v1.endpoints import (
+    super_admin_dashboard,
     super_admin_organizations,
+    super_admin_subscriptions,
     super_admin_support_requests,
     super_admin_users,
 )
@@ -193,5 +195,15 @@ router.include_router(
 router.include_router(
     super_admin_organizations.router,
     prefix="/organizations",
+    tags=["super-admin"],
+)
+router.include_router(
+    super_admin_subscriptions.router,
+    prefix="/subscriptions",
+    tags=["super-admin"],
+)
+router.include_router(
+    super_admin_dashboard.router,
+    prefix="/dashboard",
     tags=["super-admin"],
 )

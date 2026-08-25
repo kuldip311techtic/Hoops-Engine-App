@@ -24,7 +24,13 @@ if str(_package_root) not in sys.path:
 
 from app.core.config import get_settings
 from app.db.base import Base
-from app.models import Organization, Subscription, SupportRequest, User  # noqa: F401
+from app.models import (  # noqa: F401
+    Organization,
+    Subscription,
+    SubscriptionPlan,
+    SupportRequest,
+    User,
+)
 
 config = context.config
 
